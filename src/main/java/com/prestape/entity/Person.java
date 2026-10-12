@@ -15,19 +15,19 @@ public class Person extends BaseEntity{
     private String code;
 
     @Column(nullable = false, length = 8)
-    private String document_number;
+    private String documentNumber;
 
     @Column(nullable = false, length = 100)
-    private String first_name;
+    private String firstName;
 
     @Column(length = 50)
-    private String middle_name;
+    private String middleName;
 
     @Column(nullable = false, length = 100)
-    private String paternal_surname;
+    private String paternalSurname;
 
     @Column(length = 50)
-    private String maternal_surname;
+    private String maternalSurname;
 
     @Column(nullable = false, length = 9)
     private String phone;
