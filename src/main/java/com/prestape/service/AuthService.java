@@ -70,7 +70,7 @@ public class AuthService {
         User saved = userRepository.save(newUser);
 
         var authorities = saved.getRoles().stream()
-                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.getName()))
+                .map(r -> new SimpleGrantedAuthority("ROLE_" + r.getName().toUpperCase()))
                 .toList();
 
         CustomUserDetails userDetails = new CustomUserDetails(

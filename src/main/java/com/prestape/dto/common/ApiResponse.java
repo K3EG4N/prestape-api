@@ -22,6 +22,10 @@ public record ApiResponse<T>(
         return new ApiResponse<>(200, true, message, value, null);
     }
 
+    public static ApiResponse<Void> success(String message) {
+        return new ApiResponse<>(200, true, message, null, null);
+    }
+
     public static <T> ApiResponse<T> created(T value) {
         return new ApiResponse<>(201, true, "Creado correctamente", value, null);
     }

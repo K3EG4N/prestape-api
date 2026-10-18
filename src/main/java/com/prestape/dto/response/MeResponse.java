@@ -5,8 +5,6 @@ import com.prestape.entity.Role;
 import com.prestape.entity.User;
 
 import java.util.List;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 public record MeResponse(
         Long personId,
@@ -21,18 +19,12 @@ public record MeResponse(
 
         return new MeResponse(
                 person.getId(),
-                buildFullName(person),
+                person.getFullName(),
                 user != null ? user.getEmail() : null,
                 person.getDocumentNumber(),
                 user != null ? user.getId() : null,
                 user != null ? buildRoles(user) : null
         );
-    }
-
-    private static String buildFullName(Person p) {
-        return Stream.of(p.getFirstName(), p.getMiddleName(), p.getPaternalSurname(), p.getMaternalSurname())
-                .filter(s -> s != null && !s.isBlank())
-                .collect(Collectors.joining(" "));
     }
 
     private static List<String> buildRoles(User user) {
