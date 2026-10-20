@@ -5,12 +5,15 @@ import java.util.Collection;
 
 import org.springframework.data.jpa.domain.Specification;
 
+import com.prestape.dto.types.UserStatusFilter;
 import com.prestape.entity.Person;
 import com.prestape.entity.Role;
 import com.prestape.entity.User;
+import com.prestape.entity.UserStatus;
 
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
+import jakarta.persistence.criteria.Predicate;
 import jakarta.persistence.criteria.Root;
 import jakarta.persistence.criteria.Subquery;
 
@@ -62,6 +65,22 @@ public final class UserSpecifications {
 
     public static Specification<User> createdBefore(Instant to) {
         return (root, query, cb) -> cb.lessThan(root.get("createdAt"), to);
+    }
+
+    public static Specification<User> hasAnyStatus(Collection<UserStatusFilter> statuses) {
+        return (root, query, cb) -> {
+            Predicate active = cb.equal(root.get("status"), UserStatus.ACTIVE);
+
+            Predicate[] predicates = statuses.stream()
+                    .map(status -> switch (status) {
+                        case ACTIVE -> cb.and(active, cb.isTrue(root.get("profileCompleted")));
+                        case INCOMPLETE -> cb.and(active, cb.isFalse(root.get("profileCompleted")));
+                        case SUSPENDED -> cb.equal(root.get("status"), UserStatus.SUSPENDED);
+                    })
+                    .toArray(Predicate[]::new);
+
+            return cb.or(predicates);
+        };
     }
 
     private static String escapeLike(String value) {

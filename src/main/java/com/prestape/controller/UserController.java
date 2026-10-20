@@ -1,8 +1,10 @@
 package com.prestape.controller;
 
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
 
+import com.prestape.dto.CustomUserDetails;
 import com.prestape.dto.common.ApiResponse;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.request.user.create.CreateUserRequest;
@@ -39,5 +41,19 @@ public class UserController {
     public ApiResponse<Void> update(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
         userService.update(id, request);
         return ApiResponse.success("Usuario actualizado correctamente");
+    }
+
+    @PutMapping("/{id}/suspend")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    public ApiResponse<Void> suspend(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails currentUser) {
+        userService.suspend(id, currentUser.getId());
+        return ApiResponse.success("Usuario suspendido correctamente");
+    }
+
+    @PutMapping("/{id}/reactivate")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    public ApiResponse<Void> reactivate(@PathVariable Long id) {
+        userService.reactivate(id);
+        return ApiResponse.success("Usuario reactivado correctamente");
     }
 }

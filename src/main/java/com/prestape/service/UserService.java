@@ -82,6 +82,10 @@ public class UserService {
             spec = spec.and(UserSpecifications.createdBefore(request.createdTo()));
         }
 
+        if (!request.statuses().isEmpty()) {
+            spec = spec.and(UserSpecifications.hasAnyStatus(request.statuses()));
+        }
+
         Pageable pageable = PageRequest.of(request.page() - 1, request.size(), DEFAULT_SORT);
         Page<User> users = userRepository.findAll(spec, pageable);
 
@@ -131,6 +135,36 @@ public class UserService {
 
         user.setEmail(request.email());
         personService.update(person, request.person());
+    }
+
+    @Transactional
+    public void suspend(Long id, Long currentUserId) {
+        if (id.equals(currentUserId)) {
+            throw new BusinessException("No puedes suspender tu propia cuenta");
+        }
+
+        User user = findUser(id);
+
+        if (user.getRoles().stream().anyMatch(r -> Roles.ADMIN.equalsIgnoreCase(r.getName()))) {
+            throw new BusinessException("No se puede suspender a un administrador");
+        }
+
+        if (user.isSuspended()) {
+            throw new ConflictException("El usuario ya está suspendido");
+        }
+
+        user.suspend();
+    }
+
+    @Transactional
+    public void reactivate(Long id) {
+        User user = findUser(id);
+
+        if (!user.isSuspended()) {
+            throw new ConflictException("El usuario no está suspendido");
+        }
+
+        user.reactivate();
     }
 
     private User findUser(Long id) {

@@ -6,11 +6,13 @@ import java.util.List;
 
 import com.prestape.entity.Person;
 import com.prestape.entity.User;
+import com.prestape.entity.UserStatus;
 
 public record UserListResponse(
         Long id,
         String email,
         List<RoleResponse> roles,
+        UserStatus status,
         boolean profileCompleted,
         PersonSummaryResponse person,
         Instant createdAt
@@ -23,6 +25,7 @@ public record UserListResponse(
                         .map(RoleResponse::from)
                         .sorted(Comparator.comparing(RoleResponse::externalName))
                         .toList(),
+                user.getStatus(),
                 user.isProfileCompleted(),
                 PersonSummaryResponse.from(person),
                 user.getCreatedAt());

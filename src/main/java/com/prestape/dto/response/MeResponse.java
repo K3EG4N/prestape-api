@@ -19,7 +19,7 @@ public record MeResponse(
 
         return new MeResponse(
                 person.getId(),
-                person.getFullName(),
+                person.getDisplayName(),
                 user != null ? user.getEmail() : null,
                 person.getDocumentNumber(),
                 user != null ? user.getId() : null,

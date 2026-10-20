@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.springframework.format.annotation.DateTimeFormat;
 
+import com.prestape.dto.types.UserStatusFilter;
+
 import jakarta.validation.constraints.AssertTrue;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
@@ -21,6 +23,8 @@ public record UserListRequest(
 
         List<String> roles,
 
+        List<UserStatusFilter> statuses,
+
         @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
         Instant createdFrom,
 
@@ -31,6 +35,7 @@ public record UserListRequest(
         page = page == null ? 1 : page;
         size = size == null ? 15 : size;
         roles = roles == null ? List.of() : roles;
+        statuses = statuses == null ? List.of() : statuses;
     }
 
     @AssertTrue(message = "La fecha inicial no puede ser mayor a la fecha final")
