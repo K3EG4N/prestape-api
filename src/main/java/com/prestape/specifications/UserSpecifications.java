@@ -1,6 +1,8 @@
 package com.prestape.specifications;
 
+import java.text.Normalizer;
 import java.time.Instant;
+import java.util.Arrays;
 import java.util.Collection;
 
 import org.springframework.data.jpa.domain.Specification;
@@ -11,6 +13,8 @@ import com.prestape.entity.Role;
 import com.prestape.entity.User;
 import com.prestape.entity.UserStatus;
 
+import jakarta.persistence.criteria.CriteriaBuilder;
+import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Join;
 import jakarta.persistence.criteria.Predicate;
@@ -19,31 +23,49 @@ import jakarta.persistence.criteria.Subquery;
 
 public final class UserSpecifications {
 
+    private static final String ACCENTED = "áéíóúüñàèìòù";
+    private static final String PLAIN = "aeiouunaeiou";
+
     private UserSpecifications() {
     }
 
     public static Specification<User> matchesSearch(String search) {
-        return (root, query, cb) -> {
-            String pattern = "%" + escapeLike(search.toLowerCase()) + "%";
+        String[] terms = removeAccents(search.toLowerCase()).trim().split("\\s+");
 
-            Subquery<Long> people = query.subquery(Long.class);
-            Root<Person> p = people.from(Person.class);
-            Expression<String> fullName = cb.concat(
-                    cb.concat(cb.concat(p.<String>get("firstName"), " "), p.<String>get("paternalSurname")),
-                    cb.concat(" ", cb.coalesce(p.<String>get("maternalSurname"), "")));
-            people.select(p.get("id")).where(
-                    cb.equal(p.get("user"), root),
-                    cb.isNull(p.get("deletedAt")),
-                    cb.or(
-                            cb.like(cb.lower(fullName), pattern, '\\'),
-                            cb.like(p.get("documentNumber"), pattern, '\\'),
-                            cb.like(cb.lower(p.get("code")), pattern, '\\')));
+        return (root, query, cb) -> cb.and(Arrays.stream(terms)
+                .map(term -> matchesTerm(root, query, cb, "%" + escapeLike(term) + "%"))
+                .toArray(Predicate[]::new));
+    }
 
-            return cb.or(
-                    cb.like(cb.lower(root.get("email")), pattern, '\\'),
-                    cb.like(cb.lower(root.get("username")), pattern, '\\'),
-                    cb.exists(people));
-        };
+    private static Predicate matchesTerm(Root<User> root, CriteriaQuery<?> query,
+                                         CriteriaBuilder cb, String pattern) {
+        Subquery<Long> people = query.subquery(Long.class);
+        Root<Person> p = people.from(Person.class);
+        people.select(p.get("id")).where(
+                cb.equal(p.get("user"), root),
+                cb.isNull(p.get("deletedAt")),
+                cb.or(
+                        likeIgnoringAccents(cb, p.get("firstName"), pattern),
+                        likeIgnoringAccents(cb, p.get("middleName"), pattern),
+                        likeIgnoringAccents(cb, p.get("paternalSurname"), pattern),
+                        likeIgnoringAccents(cb, p.get("maternalSurname"), pattern),
+                        likeIgnoringAccents(cb, p.get("documentNumber"), pattern),
+                        likeIgnoringAccents(cb, p.get("code"), pattern)));
+
+        return cb.or(
+                likeIgnoringAccents(cb, root.get("email"), pattern),
+                likeIgnoringAccents(cb, root.get("username"), pattern),
+                cb.exists(people));
+    }
+
+    private static Predicate likeIgnoringAccents(CriteriaBuilder cb, Expression<String> field, String pattern) {
+        Expression<String> plain = cb.function("translate", String.class,
+                cb.lower(field), cb.literal(ACCENTED), cb.literal(PLAIN));
+        return cb.like(plain, pattern, '\\');
+    }
+
+    private static String removeAccents(String value) {
+        return Normalizer.normalize(value, Normalizer.Form.NFD).replaceAll("\\p{M}", "");
     }
 
     public static Specification<User> hasAnyRole(Collection<String> roleNames) {
