@@ -7,7 +7,9 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.prestape.dto.request.person.create.CreatePersonRequest;
 import com.prestape.dto.request.user.create.CreateUserRequest;
+import com.prestape.dto.response.MeResponse;
 import com.prestape.dto.request.user.update.UpdateUserRequest;
 import com.prestape.exception.BusinessException;
 import com.prestape.exception.ConflictException;
@@ -165,6 +167,18 @@ public class UserService {
         }
 
         user.reactivate();
+    }
+
+    @Transactional(readOnly = true)
+    public MeResponse getMe(Long userId) {
+        User user = findUser(userId);
+        Person person = personService.findActiveByUserId(userId).orElse(null);
+        return MeResponse.from(user, person);
+    }
+
+    @Transactional
+    public void completeProfile(Long userId, CreatePersonRequest request) {
+        personService.createForUser(findUser(userId), request);
     }
 
     private User findUser(Long id) {

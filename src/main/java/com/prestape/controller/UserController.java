@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 
 @RestController
 @RequestMapping("/api/users")
+@PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
 public class UserController {
 
     private final UserService userService;
@@ -37,21 +38,18 @@ public class UserController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
     public ApiResponse<Void> update(@PathVariable Long id, @Valid @RequestBody UpdateUserRequest request) {
         userService.update(id, request);
         return ApiResponse.success("Usuario actualizado correctamente");
     }
 
     @PutMapping("/{id}/suspend")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
     public ApiResponse<Void> suspend(@PathVariable Long id, @AuthenticationPrincipal CustomUserDetails currentUser) {
         userService.suspend(id, currentUser.getId());
         return ApiResponse.success("Usuario suspendido correctamente");
     }
 
     @PutMapping("/{id}/reactivate")
-    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
     public ApiResponse<Void> reactivate(@PathVariable Long id) {
         userService.reactivate(id);
         return ApiResponse.success("Usuario reactivado correctamente");

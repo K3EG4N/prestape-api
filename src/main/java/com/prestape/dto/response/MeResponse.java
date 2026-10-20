@@ -1,36 +1,44 @@
 package com.prestape.dto.response;
 
+import java.util.Comparator;
+import java.util.List;
+
 import com.prestape.entity.Person;
 import com.prestape.entity.Role;
 import com.prestape.entity.User;
-
-import java.util.List;
+import com.prestape.entity.UserStatus;
 
 public record MeResponse(
-        Long personId,
-        String fullName,
-        String email,
-        String documentNumber,
         Long userId,
-        List<String> roles
+        String email,
+        UserStatus status,
+        boolean profileCompleted,
+        List<RoleInfo> roles,
+        PersonInfo person
 ) {
-    public static MeResponse from(Person person) {
-        User user = person.getUser();
-
-        return new MeResponse(
-                person.getId(),
-                person.getDisplayName(),
-                user != null ? user.getEmail() : null,
-                person.getDocumentNumber(),
-                user != null ? user.getId() : null,
-                user != null ? buildRoles(user) : null
-        );
+    public record RoleInfo(String name, String externalName) {
+        static RoleInfo from(Role role) {
+            return new RoleInfo(role.getName(), role.getExternalName());
+        }
     }
 
-    private static List<String> buildRoles(User user) {
-        return user.getRoles().stream()
-                .map(Role::getExternalName)
-                .sorted()
-                .toList();
+    public record PersonInfo(String code, String displayName, String documentNumber) {
+        static PersonInfo from(Person person) {
+            if (person == null) return null;
+            return new PersonInfo(person.getCode(), person.getDisplayName(), person.getDocumentNumber());
+        }
+    }
+
+    public static MeResponse from(User user, Person person) {
+        return new MeResponse(
+                user.getId(),
+                user.getEmail(),
+                user.getStatus(),
+                user.isProfileCompleted(),
+                user.getRoles().stream()
+                        .map(RoleInfo::from)
+                        .sorted(Comparator.comparing(RoleInfo::externalName))
+                        .toList(),
+                PersonInfo.from(person));
     }
 }

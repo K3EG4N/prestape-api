@@ -21,6 +21,7 @@ public class SuspendedAccountFilter extends OncePerRequestFilter {
 
     private static final Set<String> READ_METHODS = Set.of("GET", "HEAD", "OPTIONS");
     private static final String AUTH_PATH = "/api/auth/";
+    private static final String COMPLETE_PROFILE_PATH = "/api/me/profile";
     private static final String MESSAGE = "Tu cuenta está suspendida. Solo puedes consultar información";
 
     @Override
@@ -47,6 +48,7 @@ public class SuspendedAccountFilter extends OncePerRequestFilter {
 
     private boolean isAllowed(HttpServletRequest request) {
         return READ_METHODS.contains(request.getMethod())
-                || request.getRequestURI().startsWith(AUTH_PATH);
+                || request.getRequestURI().startsWith(AUTH_PATH)
+                || request.getRequestURI().equals(COMPLETE_PROFILE_PATH);
     }
 }

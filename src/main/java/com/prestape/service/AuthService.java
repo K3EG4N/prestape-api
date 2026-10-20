@@ -19,6 +19,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.Set;
 
 @Service
@@ -61,11 +62,11 @@ public class AuthService {
             throw new ConflictException("El email ya está registrado");
         }
 
-        Role role = roleRepository.findByName(request.type().name())
-                .orElseThrow(() -> new IllegalArgumentException("Rol no encontrado"));
+        Role role = roleRepository.findByNameIgnoreCase(request.type().name())
+                .orElseThrow(() -> new BusinessException("El tipo de usuario no es válido"));
 
         User newUser = new User(null, request.email(), passwordEncoder.encode(request.password()));
-        newUser.setRoles(Set.of(role));
+        newUser.setRoles(new HashSet<>(Set.of(role)));
 
         User saved = userRepository.save(newUser);
 

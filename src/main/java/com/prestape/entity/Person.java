@@ -81,7 +81,11 @@ public class Person extends BaseEntity{
                 .collect(Collectors.joining(" "));
     }
 
-    public String getDisplayName(){
+    public String getDisplayName() {
+        if (middleName != null && !middleName.isBlank()) {
+            return String.join(" ", firstName, middleName, paternalSurname);
+        }
+
         return String.join(" ", firstName, paternalSurname);
     }
 }

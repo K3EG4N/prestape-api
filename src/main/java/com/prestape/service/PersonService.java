@@ -2,11 +2,9 @@ package com.prestape.service;
 
 import com.prestape.dto.request.person.create.CreatePersonRequest;
 import com.prestape.dto.request.person.update.UpdatePersonRequest;
-import com.prestape.dto.response.MeResponse;
 import com.prestape.entity.Person;
 import com.prestape.entity.User;
 import com.prestape.exception.ConflictException;
-import com.prestape.exception.ResourceNotFoundException;
 import com.prestape.repository.PersonRepository;
 import com.prestape.util.RandomCodeGenerator;
 import org.springframework.stereotype.Service;
@@ -24,12 +22,6 @@ public class PersonService {
 
     public PersonService(PersonRepository personRepository) {
         this.personRepository = personRepository;
-    }
-
-    public MeResponse getMe(Long userId) {
-        return personRepository.findByUserId(userId)
-                .map(MeResponse::from)
-                .orElseThrow(() -> new ResourceNotFoundException("Persona no encontrada"));
     }
 
     @Transactional

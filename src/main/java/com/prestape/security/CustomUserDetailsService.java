@@ -32,6 +32,7 @@ public class CustomUserDetailsService implements UserDetailsService {
                 user.getEmail(),
                 user.getPassword(),
                 authorities,
-                user.isSuspended());
+                user.isSuspended(),
+                user.isProfileCompleted());
     }
 }

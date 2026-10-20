@@ -37,7 +37,8 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e.authenticationEntryPoint(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(new SuspendedAccountFilter(), JwtAuthenticationFilter.class);
+                .addFilterAfter(new IncompleteProfileFilter(), JwtAuthenticationFilter.class)
+                .addFilterAfter(new SuspendedAccountFilter(), IncompleteProfileFilter.class);
         return http.build();
     }
 
