@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.prestape.config.ReportProperties;
 import com.prestape.dto.request.person.create.CreatePersonRequest;
 import com.prestape.dto.request.user.create.CreateUserRequest;
 import com.prestape.dto.response.MeResponse;
@@ -22,6 +23,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -39,6 +42,7 @@ import com.prestape.specifications.UserSpecifications;
 @Service
 public class UserService {
 
+    private static final Logger log = LoggerFactory.getLogger(UserService.class);
     private static final Sort DEFAULT_SORT = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
 
     private final UserRepository userRepository;
@@ -46,23 +50,58 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final PersonService personService;
+    private final ReportProperties reportProperties;
 
     public UserService(
             UserRepository userRepository,
             PersonRepository personRepository,
             RoleRepository roleRepository,
             PasswordEncoder passwordEncoder,
-            PersonService personService
+            PersonService personService,
+            ReportProperties reportProperties
     ) {
         this.userRepository = userRepository;
         this.personRepository = personRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.personService = personService;
+        this.reportProperties = reportProperties;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<UserListResponse> list(UserListRequest request) {
+        Pageable pageable = PageRequest.of(request.page() - 1, request.size(), DEFAULT_SORT);
+        Page<User> users = userRepository.findAll(buildSpecification(request), pageable);
+
+        Map<Long, Person> peopleByUserId = findPeopleByUserId(users.map(User::getId).toList());
+
+        return PageResponse.from(users.map(u -> UserListResponse.from(u, peopleByUserId.get(u.getId()))));
+    }
+
+    @Transactional(readOnly = true)
+    public List<UserListResponse> listForExport(UserListRequest request) {
+        Specification<User> spec = buildSpecification(request);
+
+        int maxRows = reportProperties.maxRows();
+        if (userRepository.count(spec) > maxRows) {
+            throw new BusinessException(
+                    "La exportación supera las " + maxRows + " filas. Aplica más filtros");
+        }
+
+        List<User> users = userRepository.findAll(spec, DEFAULT_SORT);
+        Map<Long, Person> peopleByUserId = findPeopleByUserId(users.stream().map(User::getId).toList());
+
+        return users.stream()
+                .map(u -> UserListResponse.from(u, peopleByUserId.get(u.getId())))
+                .toList();
+    }
+
+    private Map<Long, Person> findPeopleByUserId(List<Long> userIds) {
+        return personRepository.findByUserIdInAndDeletedAtIsNull(userIds).stream()
+                .collect(Collectors.toMap(p -> p.getUser().getId(), Function.identity()));
+    }
+
+    private Specification<User> buildSpecification(UserListRequest request) {
         Specification<User> spec = Specification.unrestricted();
 
         if (StringUtils.hasText(request.search())) {
@@ -88,15 +127,7 @@ public class UserService {
             spec = spec.and(UserSpecifications.hasAnyStatus(request.statuses()));
         }
 
-        Pageable pageable = PageRequest.of(request.page() - 1, request.size(), DEFAULT_SORT);
-        Page<User> users = userRepository.findAll(spec, pageable);
-
-        Map<Long, Person> peopleByUserId = personRepository
-                .findByUserIdInAndDeletedAtIsNull(users.map(User::getId).toList())
-                .stream()
-                .collect(Collectors.toMap(p -> p.getUser().getId(), Function.identity()));
-
-        return PageResponse.from(users.map(u -> UserListResponse.from(u, peopleByUserId.get(u.getId()))));
+        return spec;
     }
 
     @Transactional
@@ -121,6 +152,7 @@ public class UserService {
 
         User saved = userRepository.save(newUser);
         personService.createForUser(saved, request.person());
+        log.info("Usuario creado: userId={}, role={}", saved.getId(), role.getName());
     }
 
     @Transactional
@@ -137,6 +169,7 @@ public class UserService {
 
         user.setEmail(request.email());
         personService.update(person, request.person());
+        log.info("Usuario actualizado: userId={}", id);
     }
 
     @Transactional
@@ -156,6 +189,7 @@ public class UserService {
         }
 
         user.suspend();
+        log.info("Usuario suspendido: userId={}, por userId={}", id, currentUserId);
     }
 
     @Transactional
@@ -167,6 +201,7 @@ public class UserService {
         }
 
         user.reactivate();
+        log.info("Usuario reactivado: userId={}", id);
     }
 
     @Transactional(readOnly = true)
@@ -179,6 +214,7 @@ public class UserService {
     @Transactional
     public void completeProfile(Long userId, CreatePersonRequest request) {
         personService.createForUser(findUser(userId), request);
+        log.info("Perfil completado: userId={}", userId);
     }
 
     private User findUser(Long id) {

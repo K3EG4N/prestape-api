@@ -37,7 +37,8 @@ public class SecurityConfig {
                 .exceptionHandling(e -> e.authenticationEntryPoint(
                         new HttpStatusEntryPoint(HttpStatus.UNAUTHORIZED)))
                 .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
-                .addFilterAfter(new IncompleteProfileFilter(), JwtAuthenticationFilter.class)
+                .addFilterAfter(new RequestLoggingFilter(), JwtAuthenticationFilter.class)
+                .addFilterAfter(new IncompleteProfileFilter(), RequestLoggingFilter.class)
                 .addFilterAfter(new SuspendedAccountFilter(), IncompleteProfileFilter.class);
         return http.build();
     }
@@ -48,6 +49,7 @@ public class SecurityConfig {
         config.setAllowedOrigins(origins);
         config.setAllowedMethods(List.of("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(List.of("Authorization", "Content-Type"));
+        config.setExposedHeaders(List.of("Content-Disposition", "X-Request-Id"));
         config.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();

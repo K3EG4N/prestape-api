@@ -41,6 +41,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(BadCredentialsException.class)
     public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
+        log.warn("Intento de inicio de sesión fallido");
         return build(HttpStatus.UNAUTHORIZED, "Email o contraseña incorrectos");
     }
 

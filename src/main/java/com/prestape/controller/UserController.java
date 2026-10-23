@@ -1,5 +1,6 @@
 package com.prestape.controller;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -11,6 +12,7 @@ import com.prestape.dto.request.user.create.CreateUserRequest;
 import com.prestape.dto.request.user.list.UserListRequest;
 import com.prestape.dto.request.user.update.UpdateUserRequest;
 import com.prestape.dto.response.UserListResponse;
+import com.prestape.report.UserExcelReport;
 import com.prestape.service.UserService;
 
 import jakarta.validation.Valid;
@@ -21,14 +23,21 @@ import jakarta.validation.Valid;
 public class UserController {
 
     private final UserService userService;
+    private final UserExcelReport userExcelReport;
 
-    public UserController(UserService userService) {
+    public UserController(UserService userService, UserExcelReport userExcelReport) {
         this.userService = userService;
+        this.userExcelReport = userExcelReport;
     }
 
     @GetMapping
     public ApiResponse<PageResponse<UserListResponse>> list(@Valid @ModelAttribute UserListRequest request) {
         return ApiResponse.ok(userService.list(request));
+    }
+
+    @GetMapping("/export")
+    public ResponseEntity<byte[]> export(@Valid @ModelAttribute UserListRequest request) {
+        return userExcelReport.generate(userService.listForExport(request)).toResponse();
     }
 
     @PostMapping

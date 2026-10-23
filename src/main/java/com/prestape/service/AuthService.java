@@ -17,6 +17,8 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.crypto.password.PasswordEncoder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.util.HashSet;
@@ -24,6 +26,8 @@ import java.util.Set;
 
 @Service
 public class AuthService {
+    private static final Logger log = LoggerFactory.getLogger(AuthService.class);
+
     private final UserRepository userRepository;
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
@@ -50,6 +54,7 @@ public class AuthService {
 
         CustomUserDetails user = (CustomUserDetails) authentication.getPrincipal();
         assert user != null;
+        log.info("Inicio de sesión: userId={}", user.getId());
         return new LoginResponse(jwtService.generateToken(user));
     }
 
@@ -80,6 +85,7 @@ public class AuthService {
                 saved.getPassword(),
                 authorities);
 
+        log.info("Registro de usuario: userId={}", saved.getId());
         return new RegisterResponse(jwtService.generateToken(userDetails));
     }
 }
