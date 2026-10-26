@@ -6,6 +6,7 @@ import java.util.stream.Collectors;
 
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
+import com.prestape.dto.common.SelectOption;
 import com.prestape.dto.request.category.update.UpdateCategoryRequest;
 import com.prestape.dto.response.EquipmentCategoryListResponse;
 import com.prestape.entity.EquipmentCategory;
@@ -54,6 +55,13 @@ public class EquipmentCategoryService {
 
         return PageResponse.from(categories.map(c ->
                 EquipmentCategoryListResponse.from(c, countByCategoryId.getOrDefault(c.getId(), 0L))));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SelectOption> options() {
+        return categoryRepository.findAll(DEFAULT_SORT).stream()
+                .map(category -> new SelectOption(category.getId(), category.getName(), category.getDescription()))
+                .toList();
     }
 
     @Transactional

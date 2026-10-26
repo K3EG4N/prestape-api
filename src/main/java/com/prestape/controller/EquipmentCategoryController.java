@@ -1,11 +1,14 @@
 package com.prestape.controller;
 
+import java.util.List;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.prestape.dto.common.ApiResponse;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
+import com.prestape.dto.common.SelectOption;
 import com.prestape.dto.request.category.update.UpdateCategoryRequest;
 import com.prestape.dto.response.EquipmentCategoryListResponse;
 import com.prestape.service.EquipmentCategoryService;
@@ -26,6 +29,11 @@ public class EquipmentCategoryController {
     public ApiResponse<PageResponse<EquipmentCategoryListResponse>> list(
             @Valid @ModelAttribute PaginationRequest pagination) {
         return ApiResponse.ok(categoryService.list(pagination));
+    }
+
+    @GetMapping("/options")
+    public ApiResponse<List<SelectOption>> options() {
+        return ApiResponse.ok(categoryService.options());
     }
 
     @PutMapping("/{id}")
