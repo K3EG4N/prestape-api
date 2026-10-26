@@ -21,4 +21,4 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
     boolean existsByDocumentNumberAndDeletedAtIsNullAndIdNot(String documentNumber, Long id);
 
     Optional<Person> findByUserIdAndDeletedAtIsNull(Long userId);
-}
+}
