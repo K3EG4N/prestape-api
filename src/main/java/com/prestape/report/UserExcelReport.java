@@ -28,7 +28,7 @@ import org.springframework.stereotype.Component;
 import com.prestape.config.ReportProperties;
 import com.prestape.dto.response.PersonSummaryResponse;
 import com.prestape.dto.response.UserListResponse;
-import com.prestape.entity.UserStatus;
+import com.prestape.entity.enums.UserStatus;
 
 @Component
 public class UserExcelReport {

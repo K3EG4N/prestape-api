@@ -6,7 +6,7 @@ import java.util.List;
 
 import com.prestape.entity.Person;
 import com.prestape.entity.User;
-import com.prestape.entity.UserStatus;
+import com.prestape.entity.enums.UserStatus;
 
 public record UserListResponse(
         Long id,

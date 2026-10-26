@@ -3,6 +3,7 @@ package com.prestape.entity;
 import java.util.HashSet;
 import java.util.Set;
 
+import com.prestape.entity.enums.UserStatus;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.SQLDelete;
 import org.hibernate.annotations.SQLRestriction;

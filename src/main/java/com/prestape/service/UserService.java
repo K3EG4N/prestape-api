@@ -18,8 +18,6 @@ import com.prestape.exception.ResourceNotFoundException;
 import com.prestape.security.Roles;
 import com.prestape.repository.RoleRepository;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.PageRequest;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -30,7 +28,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 import com.prestape.dto.common.PageResponse;
-import com.prestape.dto.request.user.list.UserListRequest;
+import com.prestape.dto.common.PaginationRequest;
+import com.prestape.dto.request.user.list.UserFilterRequest;
 import com.prestape.dto.response.UserListResponse;
 import com.prestape.entity.Person;
 import com.prestape.entity.Role;
@@ -69,9 +68,9 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public PageResponse<UserListResponse> list(UserListRequest request) {
-        Pageable pageable = PageRequest.of(request.page() - 1, request.size(), DEFAULT_SORT);
-        Page<User> users = userRepository.findAll(buildSpecification(request), pageable);
+    public PageResponse<UserListResponse> list(PaginationRequest pagination, UserFilterRequest filter) {
+        Page<User> users = userRepository.findAll(
+                buildSpecification(pagination.search(), filter), pagination.toPageable(DEFAULT_SORT));
 
         Map<Long, Person> peopleByUserId = findPeopleByUserId(users.map(User::getId).toList());
 
@@ -79,8 +78,8 @@ public class UserService {
     }
 
     @Transactional(readOnly = true)
-    public List<UserListResponse> listForExport(UserListRequest request) {
-        Specification<User> spec = buildSpecification(request);
+    public List<UserListResponse> listForExport(String search, UserFilterRequest filter) {
+        Specification<User> spec = buildSpecification(search, filter);
 
         int maxRows = reportProperties.maxRows();
         if (userRepository.count(spec) > maxRows) {
@@ -101,14 +100,14 @@ public class UserService {
                 .collect(Collectors.toMap(p -> p.getUser().getId(), Function.identity()));
     }
 
-    private Specification<User> buildSpecification(UserListRequest request) {
+    private Specification<User> buildSpecification(String search, UserFilterRequest filter) {
         Specification<User> spec = Specification.unrestricted();
 
-        if (StringUtils.hasText(request.search())) {
-            spec = spec.and(UserSpecifications.matchesSearch(request.search().trim()));
+        if (StringUtils.hasText(search)) {
+            spec = spec.and(UserSpecifications.matchesSearch(search.trim()));
         }
 
-        List<String> roles = request.roles().stream()
+        List<String> roles = filter.roles().stream()
                 .filter(StringUtils::hasText)
                 .map(r -> r.trim().toUpperCase())
                 .toList();
@@ -116,15 +115,15 @@ public class UserService {
             spec = spec.and(UserSpecifications.hasAnyRole(roles));
         }
 
-        if (request.createdFrom() != null) {
-            spec = spec.and(UserSpecifications.createdFrom(request.createdFrom()));
+        if (filter.createdFrom() != null) {
+            spec = spec.and(UserSpecifications.createdFrom(filter.createdFrom()));
         }
-        if (request.createdTo() != null) {
-            spec = spec.and(UserSpecifications.createdBefore(request.createdTo()));
+        if (filter.createdTo() != null) {
+            spec = spec.and(UserSpecifications.createdBefore(filter.createdTo()));
         }
 
-        if (!request.statuses().isEmpty()) {
-            spec = spec.and(UserSpecifications.hasAnyStatus(request.statuses()));
+        if (!filter.statuses().isEmpty()) {
+            spec = spec.and(UserSpecifications.hasAnyStatus(filter.statuses()));
         }
 
         return spec;

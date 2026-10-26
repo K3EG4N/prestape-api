@@ -1,4 +1,4 @@
-package com.prestape.entity;
+package com.prestape.entity.enums;
 
 public enum UserStatus {
     ACTIVE,

@@ -9,7 +9,8 @@ import com.prestape.dto.CustomUserDetails;
 import com.prestape.dto.common.ApiResponse;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.request.user.create.CreateUserRequest;
-import com.prestape.dto.request.user.list.UserListRequest;
+import com.prestape.dto.common.PaginationRequest;
+import com.prestape.dto.request.user.list.UserFilterRequest;
 import com.prestape.dto.request.user.update.UpdateUserRequest;
 import com.prestape.dto.response.UserListResponse;
 import com.prestape.report.UserExcelReport;
@@ -31,13 +32,17 @@ public class UserController {
     }
 
     @GetMapping
-    public ApiResponse<PageResponse<UserListResponse>> list(@Valid @ModelAttribute UserListRequest request) {
-        return ApiResponse.ok(userService.list(request));
+    public ApiResponse<PageResponse<UserListResponse>> list(
+            @Valid @ModelAttribute PaginationRequest pagination,
+            @Valid @ModelAttribute UserFilterRequest filter) {
+        return ApiResponse.ok(userService.list(pagination, filter));
     }
 
     @GetMapping("/export")
-    public ResponseEntity<byte[]> export(@Valid @ModelAttribute UserListRequest request) {
-        return userExcelReport.generate(userService.listForExport(request)).toResponse();
+    public ResponseEntity<byte[]> export(
+            @RequestParam(required = false) String search,
+            @Valid @ModelAttribute UserFilterRequest filter) {
+        return userExcelReport.generate(userService.listForExport(search, filter)).toResponse();
     }
 
     @PostMapping
