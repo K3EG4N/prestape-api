@@ -7,6 +7,7 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
+import com.prestape.constants.UserConstants;
 import com.prestape.config.ReportProperties;
 import com.prestape.dto.request.person.create.CreatePersonRequest;
 import com.prestape.dto.request.user.create.CreateUserRequest;
@@ -18,7 +19,6 @@ import com.prestape.exception.ResourceNotFoundException;
 import com.prestape.security.Roles;
 import com.prestape.repository.RoleRepository;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.slf4j.Logger;
@@ -42,7 +42,6 @@ import com.prestape.specifications.UserSpecifications;
 public class UserService {
 
     private static final Logger log = LoggerFactory.getLogger(UserService.class);
-    private static final Sort DEFAULT_SORT = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
 
     private final UserRepository userRepository;
     private final PersonRepository personRepository;
@@ -70,7 +69,7 @@ public class UserService {
     @Transactional(readOnly = true)
     public PageResponse<UserListResponse> list(PaginationRequest pagination, UserFilterRequest filter) {
         Page<User> users = userRepository.findAll(
-                buildSpecification(pagination.search(), filter), pagination.toPageable(DEFAULT_SORT));
+                buildSpecification(pagination.search(), filter), pagination.toPageable(UserConstants.DEFAULT_SORT));
 
         Map<Long, Person> peopleByUserId = findPeopleByUserId(users.map(User::getId).toList());
 
@@ -87,7 +86,7 @@ public class UserService {
                     "La exportación supera las " + maxRows + " filas. Aplica más filtros");
         }
 
-        List<User> users = userRepository.findAll(spec, DEFAULT_SORT);
+        List<User> users = userRepository.findAll(spec, UserConstants.DEFAULT_SORT);
         Map<Long, Person> peopleByUserId = findPeopleByUserId(users.stream().map(User::getId).toList());
 
         return users.stream()

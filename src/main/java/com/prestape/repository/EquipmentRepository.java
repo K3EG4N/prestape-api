@@ -6,10 +6,12 @@ import java.util.List;
 import com.prestape.entity.Equipment;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -40,4 +42,16 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long>, Jpa
     boolean existsBySerialNumberIgnoreCase(String serialNumber);
 
     boolean existsBySerialNumberIgnoreCaseAndIdNot(String serialNumber, Long id);
+
+    @Query("""
+            select e from Equipment e
+            where not exists (
+                select 1 from Kit k join k.equipments ke
+                where ke.id = e.id and k.id <> :kitId)
+            """)
+    List<Equipment> findAssignableToKit(@Param("kitId") Long kitId, Sort sort);
+
+    @Modifying
+    @Query(value = "DELETE FROM kit_items WHERE equipment_id = :equipmentId", nativeQuery = true)
+    void removeFromKits(@Param("equipmentId") Long equipmentId);
 }

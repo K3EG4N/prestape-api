@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.prestape.constants.CategoryConstants;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
 import com.prestape.dto.common.SelectOption;
@@ -19,7 +20,6 @@ import com.prestape.specifications.EquipmentCategorySpecifications;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -29,8 +29,6 @@ import org.springframework.util.StringUtils;
 public class EquipmentCategoryService {
 
     private static final Logger log = LoggerFactory.getLogger(EquipmentCategoryService.class);
-
-    private static final Sort DEFAULT_SORT = Sort.by(Sort.Order.asc("name"), Sort.Order.asc("id"));
 
     private final EquipmentCategoryRepository categoryRepository;
     private final EquipmentRepository equipmentRepository;
@@ -49,7 +47,7 @@ public class EquipmentCategoryService {
                 ? Specification.unrestricted()
                 : EquipmentCategorySpecifications.matchesSearch(pagination.search());
 
-        Page<EquipmentCategory> categories = categoryRepository.findAll(spec, pagination.toPageable(DEFAULT_SORT));
+        Page<EquipmentCategory> categories = categoryRepository.findAll(spec, pagination.toPageable(CategoryConstants.DEFAULT_SORT));
 
         Map<Long, Long> countByCategoryId = countEquipmentByCategory(categories.map(EquipmentCategory::getId).toList());
 
@@ -59,7 +57,7 @@ public class EquipmentCategoryService {
 
     @Transactional(readOnly = true)
     public List<SelectOption> options() {
-        return categoryRepository.findAll(DEFAULT_SORT).stream()
+        return categoryRepository.findAll(CategoryConstants.DEFAULT_SORT).stream()
                 .map(category -> new SelectOption(category.getId(), category.getName(), category.getDescription()))
                 .toList();
     }

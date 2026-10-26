@@ -1,5 +1,6 @@
 package com.prestape.service;
 
+import com.prestape.constants.PersonConstants;
 import com.prestape.dto.request.person.create.CreatePersonRequest;
 import com.prestape.dto.request.person.update.UpdatePersonRequest;
 import com.prestape.entity.Person;
@@ -15,8 +16,6 @@ import java.util.Optional;
 
 @Service
 public class PersonService {
-    private static final int CODE_LENGTH = 6;
-    private static final int MAX_CODE_ATTEMPTS = 10;
 
     private final PersonRepository personRepository;
 
@@ -36,7 +35,8 @@ public class PersonService {
 
         Person person = new Person(
                 user,
-                generateUniqueCode(),
+                RandomCodeGenerator.generateUnique(
+                        PersonConstants.CODE_PREFIX, PersonConstants.CODE_LENGTH, personRepository::existsByCode),
                 request.documentNumber(),
                 request.firstName().trim(),
                 trimToNull(request.middleName()),
@@ -67,16 +67,6 @@ public class PersonService {
                 request.paternalSurname().trim(),
                 trimToNull(request.maternalSurname()),
                 request.phone());
-    }
-
-    private String generateUniqueCode() {
-        for (int attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
-            String code = RandomCodeGenerator.generate(CODE_LENGTH);
-            if (!personRepository.existsByCode(code)) {
-                return code;
-            }
-        }
-        throw new IllegalStateException("No se pudo generar un código único para la persona");
     }
 
     private static String trimToNull(String value) {

@@ -1,11 +1,14 @@
 package com.prestape.controller;
 
+import java.util.List;
+
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import com.prestape.dto.common.ApiResponse;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
+import com.prestape.dto.common.SelectOption;
 import com.prestape.dto.request.equipment.create.CreateEquipmentRequest;
 import com.prestape.dto.request.equipment.list.EquipmentFilterRequest;
 import com.prestape.dto.request.equipment.update.UpdateEquipmentRequest;
@@ -29,6 +32,11 @@ public class EquipmentController {
             @Valid @ModelAttribute PaginationRequest pagination,
             @Valid @ModelAttribute EquipmentFilterRequest filter) {
         return ApiResponse.ok(equipmentService.list(pagination, filter));
+    }
+
+    @GetMapping("/options")
+    public ApiResponse<List<SelectOption>> options(@RequestParam(required = false) Long kitId) {
+        return ApiResponse.ok(equipmentService.options(kitId));
     }
 
     @PostMapping

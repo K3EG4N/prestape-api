@@ -1,7 +1,11 @@
 package com.prestape.service;
 
+import java.util.List;
+
+import com.prestape.constants.EquipmentConstants;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
+import com.prestape.dto.common.SelectOption;
 import com.prestape.dto.request.equipment.create.CreateEquipmentRequest;
 import com.prestape.dto.request.equipment.list.EquipmentFilterRequest;
 import com.prestape.dto.request.equipment.update.UpdateEquipmentRequest;
@@ -18,7 +22,6 @@ import com.prestape.specifications.EquipmentSpecifications;
 import com.prestape.util.RandomCodeGenerator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,11 +31,6 @@ import org.springframework.util.StringUtils;
 public class EquipmentService {
 
     private static final Logger log = LoggerFactory.getLogger(EquipmentService.class);
-
-    private static final Sort DEFAULT_SORT = Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"));
-    private static final String CODE_PREFIX = "EQ-";
-    private static final int CODE_LENGTH = 4;
-    private static final int MAX_CODE_ATTEMPTS = 10;
 
     private final EquipmentRepository equipmentRepository;
     private final EquipmentCategoryRepository categoryRepository;
@@ -48,8 +46,16 @@ public class EquipmentService {
     @Transactional(readOnly = true)
     public PageResponse<EquipmentListResponse> list(PaginationRequest pagination, EquipmentFilterRequest filter) {
         return PageResponse.from(equipmentRepository
-                .findAll(buildSpecification(pagination.search(), filter), pagination.toPageable(DEFAULT_SORT))
+                .findAll(buildSpecification(pagination.search(), filter), pagination.toPageable(EquipmentConstants.DEFAULT_SORT))
                 .map(EquipmentListResponse::from));
+    }
+
+    @Transactional(readOnly = true)
+    public List<SelectOption> options(Long kitId) {
+        return equipmentRepository.findAssignableToKit(kitId == null ? 0L : kitId, EquipmentConstants.OPTIONS_SORT)
+                .stream()
+                .map(equipment -> new SelectOption(equipment.getId(), equipment.getName(), equipment.getCode()))
+                .toList();
     }
 
     @Transactional
@@ -60,7 +66,8 @@ public class EquipmentService {
         }
 
         Equipment equipment = new Equipment();
-        equipment.setCode(generateUniqueCode());
+        equipment.setCode(RandomCodeGenerator.generateUnique(
+                EquipmentConstants.CODE_PREFIX, EquipmentConstants.CODE_LENGTH, equipmentRepository::existsByCode));
         equipment.setName(request.name().trim());
         equipment.setSerialNumber(serialNumber);
         equipment.setDescription(trimToNull(request.description()));
@@ -101,6 +108,7 @@ public class EquipmentService {
             throw new BusinessException("No se puede eliminar un equipo que está prestado");
         }
 
+        equipmentRepository.removeFromKits(id);
         equipmentRepository.delete(equipment);
         log.info("Equipo eliminado: equipmentId={}", id);
     }
@@ -144,16 +152,6 @@ public class EquipmentService {
     private EquipmentCategory findCategory(Long categoryId) {
         return categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada"));
-    }
-
-    private String generateUniqueCode() {
-        for (int attempt = 0; attempt < MAX_CODE_ATTEMPTS; attempt++) {
-            String code = CODE_PREFIX + RandomCodeGenerator.generate(CODE_LENGTH);
-            if (!equipmentRepository.existsByCode(code)) {
-                return code;
-            }
-        }
-        throw new IllegalStateException("No se pudo generar un código único para el equipo");
     }
 
     private static String trimToNull(String value) {
