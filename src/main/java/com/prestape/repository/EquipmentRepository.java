@@ -24,4 +24,6 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long>, Jpa
             group by e.category.id
             """)
     List<CategoryCount> countByCategoryIds(@Param("categoryIds") Collection<Long> categoryIds);
+
+    long countByCategoryId(Long categoryId);
 }
