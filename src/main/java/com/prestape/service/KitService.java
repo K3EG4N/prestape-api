@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.prestape.config.ReportProperties;
 import com.prestape.constants.KitConstants;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
@@ -13,6 +14,7 @@ import com.prestape.dto.request.kit.update.UpdateKitRequest;
 import com.prestape.dto.response.KitListResponse;
 import com.prestape.entity.Equipment;
 import com.prestape.entity.Kit;
+import com.prestape.exception.BusinessException;
 import com.prestape.exception.ConflictException;
 import com.prestape.exception.ResourceNotFoundException;
 import com.prestape.repository.EquipmentRepository;
@@ -33,10 +35,16 @@ public class KitService {
 
     private final KitRepository kitRepository;
     private final EquipmentRepository equipmentRepository;
+    private final ReportProperties reportProperties;
 
-    public KitService(KitRepository kitRepository, EquipmentRepository equipmentRepository) {
+    public KitService(
+            KitRepository kitRepository,
+            EquipmentRepository equipmentRepository,
+            ReportProperties reportProperties
+    ) {
         this.kitRepository = kitRepository;
         this.equipmentRepository = equipmentRepository;
+        this.reportProperties = reportProperties;
     }
 
     @Transactional(readOnly = true)
@@ -44,6 +52,21 @@ public class KitService {
         return PageResponse.from(kitRepository
                 .findAll(buildSpecification(pagination.search(), filter), pagination.toPageable(KitConstants.DEFAULT_SORT))
                 .map(KitListResponse::from));
+    }
+
+    @Transactional(readOnly = true)
+    public List<KitListResponse> listForExport(String search, KitFilterRequest filter) {
+        Specification<Kit> spec = buildSpecification(search, filter);
+
+        int maxRows = reportProperties.maxRows();
+        if (kitRepository.count(spec) > maxRows) {
+            throw new BusinessException(
+                    "La exportación supera las " + maxRows + " filas. Aplica más filtros");
+        }
+
+        return kitRepository.findAll(spec, KitConstants.DEFAULT_SORT).stream()
+                .map(KitListResponse::from)
+                .toList();
     }
 
     @Transactional

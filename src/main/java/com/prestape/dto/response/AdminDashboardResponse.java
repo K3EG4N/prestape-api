@@ -14,8 +14,12 @@ public record AdminDashboardResponse(
         KitSummary kits,
         List<CategoryStock> categories,
         UserSummary users,
-        List<AttentionEquipment> attention
+        List<AttentionEquipment> attention,
+        Trends trends
 ) {
+    public record Trends(Integer equipment, Integer kits, Integer users) {
+    }
+
     public record EquipmentSummary(
             long total,
             Map<EquipmentAvailability, Long> byAvailability,

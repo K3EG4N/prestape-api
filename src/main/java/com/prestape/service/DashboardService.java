@@ -16,6 +16,7 @@ import com.prestape.dto.response.AdminDashboardResponse.CategoryStock;
 import com.prestape.dto.response.AdminDashboardResponse.EquipmentSummary;
 import com.prestape.dto.response.AdminDashboardResponse.KitSummary;
 import com.prestape.dto.response.AdminDashboardResponse.RecentUser;
+import com.prestape.dto.response.AdminDashboardResponse.Trends;
 import com.prestape.dto.response.AdminDashboardResponse.UserSummary;
 import com.prestape.dto.types.UserStatusFilter;
 import com.prestape.entity.Person;
@@ -62,12 +63,39 @@ public class DashboardService {
 
     @Transactional(readOnly = true)
     public AdminDashboardResponse admin() {
+        EquipmentSummary equipment = equipmentSummary();
+        KitSummary kits = kitSummary();
+        UserSummary users = userSummary();
+
         return new AdminDashboardResponse(
-                equipmentSummary(),
-                kitSummary(),
+                equipment,
+                kits,
                 categoryStock(),
-                userSummary(),
-                attention());
+                users,
+                attention(),
+                trends(equipment.total(), kits.total(), users.total()));
+    }
+
+    private Trends trends(long equipment, long kits, long users) {
+        Instant monthStart = monthStart();
+        return new Trends(
+                percentChange(equipment, equipmentRepository.countExistingAt(monthStart)),
+                percentChange(kits, kitRepository.countExistingAt(monthStart)),
+                percentChange(users, userRepository.countExistingAt(monthStart)));
+    }
+
+    private static Integer percentChange(long current, long previous) {
+        if (previous == 0) {
+            return null;
+        }
+        return (int) Math.round((current - previous) * 100.0 / previous);
+    }
+
+    private Instant monthStart() {
+        return LocalDate.now(reportProperties.timezone())
+                .withDayOfMonth(1)
+                .atStartOfDay(reportProperties.timezone())
+                .toInstant();
     }
 
     private EquipmentSummary equipmentSummary() {
@@ -112,10 +140,7 @@ public class DashboardService {
     }
 
     private UserSummary userSummary() {
-        Instant monthStart = LocalDate.now(reportProperties.timezone())
-                .withDayOfMonth(1)
-                .atStartOfDay(reportProperties.timezone())
-                .toInstant();
+        Instant monthStart = monthStart();
 
         return new UserSummary(
                 userRepository.count(),

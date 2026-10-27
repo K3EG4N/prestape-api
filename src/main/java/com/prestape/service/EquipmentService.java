@@ -2,6 +2,7 @@ package com.prestape.service;
 
 import java.util.List;
 
+import com.prestape.config.ReportProperties;
 import com.prestape.constants.EquipmentConstants;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
@@ -34,13 +35,16 @@ public class EquipmentService {
 
     private final EquipmentRepository equipmentRepository;
     private final EquipmentCategoryRepository categoryRepository;
+    private final ReportProperties reportProperties;
 
     public EquipmentService(
             EquipmentRepository equipmentRepository,
-            EquipmentCategoryRepository categoryRepository
+            EquipmentCategoryRepository categoryRepository,
+            ReportProperties reportProperties
     ) {
         this.equipmentRepository = equipmentRepository;
         this.categoryRepository = categoryRepository;
+        this.reportProperties = reportProperties;
     }
 
     @Transactional(readOnly = true)
@@ -48,6 +52,21 @@ public class EquipmentService {
         return PageResponse.from(equipmentRepository
                 .findAll(buildSpecification(pagination.search(), filter), pagination.toPageable(EquipmentConstants.DEFAULT_SORT))
                 .map(EquipmentListResponse::from));
+    }
+
+    @Transactional(readOnly = true)
+    public List<EquipmentListResponse> listForExport(String search, EquipmentFilterRequest filter) {
+        Specification<Equipment> spec = buildSpecification(search, filter);
+
+        int maxRows = reportProperties.maxRows();
+        if (equipmentRepository.count(spec) > maxRows) {
+            throw new BusinessException(
+                    "La exportación supera las " + maxRows + " filas. Aplica más filtros");
+        }
+
+        return equipmentRepository.findAll(spec, EquipmentConstants.DEFAULT_SORT).stream()
+                .map(EquipmentListResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)

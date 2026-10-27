@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.prestape.config.ReportProperties;
 import com.prestape.constants.CategoryConstants;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
@@ -32,27 +33,45 @@ public class EquipmentCategoryService {
 
     private final EquipmentCategoryRepository categoryRepository;
     private final EquipmentRepository equipmentRepository;
+    private final ReportProperties reportProperties;
 
     public EquipmentCategoryService(
             EquipmentCategoryRepository categoryRepository,
-            EquipmentRepository equipmentRepository
+            EquipmentRepository equipmentRepository,
+            ReportProperties reportProperties
     ) {
         this.categoryRepository = categoryRepository;
         this.equipmentRepository = equipmentRepository;
+        this.reportProperties = reportProperties;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<EquipmentCategoryListResponse> list(PaginationRequest pagination) {
-        Specification<EquipmentCategory> spec = pagination.search() == null
-                ? Specification.unrestricted()
-                : EquipmentCategorySpecifications.matchesSearch(pagination.search());
-
-        Page<EquipmentCategory> categories = categoryRepository.findAll(spec, pagination.toPageable(CategoryConstants.DEFAULT_SORT));
+        Page<EquipmentCategory> categories = categoryRepository.findAll(
+                buildSpecification(pagination.search()), pagination.toPageable(CategoryConstants.DEFAULT_SORT));
 
         Map<Long, Long> countByCategoryId = countEquipmentByCategory(categories.map(EquipmentCategory::getId).toList());
 
         return PageResponse.from(categories.map(c ->
                 EquipmentCategoryListResponse.from(c, countByCategoryId.getOrDefault(c.getId(), 0L))));
+    }
+
+    @Transactional(readOnly = true)
+    public List<EquipmentCategoryListResponse> listForExport(String search) {
+        Specification<EquipmentCategory> spec = buildSpecification(search);
+
+        int maxRows = reportProperties.maxRows();
+        if (categoryRepository.count(spec) > maxRows) {
+            throw new BusinessException(
+                    "La exportación supera las " + maxRows + " filas. Aplica más filtros");
+        }
+
+        List<EquipmentCategory> categories = categoryRepository.findAll(spec, CategoryConstants.DEFAULT_SORT);
+        Map<Long, Long> countByCategoryId = countEquipmentByCategory(categories.stream().map(EquipmentCategory::getId).toList());
+
+        return categories.stream()
+                .map(c -> EquipmentCategoryListResponse.from(c, countByCategoryId.getOrDefault(c.getId(), 0L)))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -88,6 +107,12 @@ public class EquipmentCategoryService {
 
         categoryRepository.delete(category);
         log.info("Categoría eliminada: categoryId={}", id);
+    }
+
+    private Specification<EquipmentCategory> buildSpecification(String search) {
+        return StringUtils.hasText(search)
+                ? EquipmentCategorySpecifications.matchesSearch(search.trim())
+                : Specification.unrestricted();
     }
 
     private EquipmentCategory findCategory(Long id) {

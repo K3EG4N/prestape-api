@@ -1,5 +1,6 @@
 package com.prestape.repository;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -38,6 +39,10 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long>, Jpa
     @Override
     @EntityGraph(attributePaths = "category")
     Page<Equipment> findAll(Specification<Equipment> spec, Pageable pageable);
+
+    @Override
+    @EntityGraph(attributePaths = "category")
+    List<Equipment> findAll(Specification<Equipment> spec, Sort sort);
 
     boolean existsByCode(String code);
 
@@ -87,4 +92,10 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long>, Jpa
     @EntityGraph(attributePaths = "category")
     List<Equipment> findTop5ByAvailabilityOrConditionOrderByUpdatedAtDesc(
             EquipmentAvailability availability, EquipmentCondition condition);
+
+    @Query(value = """
+            SELECT count(*) FROM equipments
+            WHERE created_at < :at AND (deleted_at IS NULL OR deleted_at >= :at)
+            """, nativeQuery = true)
+    long countExistingAt(@Param("at") Instant at);
 }

@@ -1,5 +1,6 @@
 package com.prestape.repository;
 
+import java.time.Instant;
 import java.util.Collection;
 import java.util.List;
 
@@ -26,4 +27,10 @@ public interface KitRepository extends JpaRepository<Kit, Long>, JpaSpecificatio
             """)
     List<AssignedEquipment> findAssignedToOtherKits(
             @Param("equipmentIds") Collection<Long> equipmentIds, @Param("kitId") Long kitId);
+
+    @Query(value = """
+            SELECT count(*) FROM kits
+            WHERE created_at < :at AND (deleted_at IS NULL OR deleted_at >= :at)
+            """, nativeQuery = true)
+    long countExistingAt(@Param("at") Instant at);
 }
