@@ -1,4 +1,4 @@
-package com.prestape.exception;
+package com.prestape.exception.custom;
 
 public class ConflictException extends RuntimeException {
     public ConflictException(String message) {

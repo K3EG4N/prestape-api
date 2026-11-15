@@ -1,4 +1,4 @@
-package com.prestape.exception;
+package com.prestape.exception.custom;
 
 public class BusinessException extends RuntimeException {
 

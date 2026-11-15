@@ -4,8 +4,6 @@ import java.security.SecureRandom;
 import java.util.function.Predicate;
 
 public final class RandomCodeGenerator {
-
-    // Sin caracteres que se confunden al dictar o copiar: 0/O, 1/I/L
     private static final String ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789";
     private static final SecureRandom RANDOM = new SecureRandom();
     private static final int MAX_ATTEMPTS = 10;

@@ -19,6 +19,10 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.prestape.dto.common.ApiResponse;
+import com.prestape.exception.custom.BusinessException;
+import com.prestape.exception.custom.ConflictException;
+import com.prestape.exception.custom.ResourceNotFoundException;
+import com.prestape.exception.custom.UnauthorizedException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {

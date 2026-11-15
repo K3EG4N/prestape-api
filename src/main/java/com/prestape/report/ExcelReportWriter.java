@@ -10,6 +10,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+import com.prestape.report.configuration.ExcelColumnConfiguration;
+import com.prestape.report.configuration.ReportFileConfiguration;
 import org.apache.poi.ss.usermodel.BorderStyle;
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellStyle;
@@ -28,7 +30,6 @@ import com.prestape.config.ReportProperties;
 
 @Component
 public class ExcelReportWriter {
-
     private static final String NUMBER_HEADER = "N°";
     private static final DateTimeFormatter FILE_DATE = DateTimeFormatter.ofPattern("yyyyMMdd");
     private static final String DATE_FORMAT = "dd/mm/yyyy";
@@ -39,7 +40,7 @@ public class ExcelReportWriter {
         this.zoneId = properties.timezone();
     }
 
-    public <T> ReportFile write(String sheetName, String filePrefix, List<ExcelColumn<T>> columns, List<T> rows) {
+    public <T> ReportFileConfiguration write(String sheetName, String filePrefix, List<ExcelColumnConfiguration<T>> columns, List<T> rows) {
         try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream out = new ByteArrayOutputStream()) {
             Sheet sheet = workbook.createSheet(sheetName);
             CellStyle headerStyle = headerStyle(workbook);
@@ -68,7 +69,7 @@ public class ExcelReportWriter {
 
             workbook.write(out);
             String filename = filePrefix + LocalDate.now(zoneId).format(FILE_DATE) + ".xlsx";
-            return new ReportFile(filename, ReportFile.XLSX, out.toByteArray());
+            return new ReportFileConfiguration(filename, ReportFileConfiguration.XLSX, out.toByteArray());
         } catch (IOException e) {
             throw new UncheckedIOException("No se pudo generar el reporte de " + sheetName.toLowerCase(), e);
         }

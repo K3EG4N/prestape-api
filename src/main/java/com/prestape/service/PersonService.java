@@ -5,7 +5,7 @@ import com.prestape.dto.request.person.create.CreatePersonRequest;
 import com.prestape.dto.request.person.update.UpdatePersonRequest;
 import com.prestape.entity.Person;
 import com.prestape.entity.User;
-import com.prestape.exception.ConflictException;
+import com.prestape.exception.custom.ConflictException;
 import com.prestape.repository.PersonRepository;
 import com.prestape.util.RandomCodeGenerator;
 import org.springframework.stereotype.Service;
