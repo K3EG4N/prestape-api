@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.prestape.util.TextUtils;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -89,10 +90,10 @@ public class EquipmentService {
                 EquipmentConstants.CODE_PREFIX, EquipmentConstants.CODE_LENGTH, equipmentRepository::existsByCode));
         equipment.setName(request.name().trim());
         equipment.setSerialNumber(serialNumber);
-        equipment.setDescription(trimToNull(request.description()));
+        equipment.setDescription(TextUtils.trimToNull(request.description()));
         equipment.setCategory(findCategory(request.categoryId()));
         equipment.setCondition(request.condition());
-        equipment.setConditionNotes(trimToNull(request.conditionNotes()));
+        equipment.setConditionNotes(TextUtils.trimToNull(request.conditionNotes()));
 
         Equipment saved = equipmentRepository.save(equipment);
         log.info("Equipo creado: equipmentId={}, code={}", saved.getId(), saved.getCode());
@@ -111,11 +112,11 @@ public class EquipmentService {
 
         equipment.setName(request.name().trim());
         equipment.setSerialNumber(serialNumber);
-        equipment.setDescription(trimToNull(request.description()));
+        equipment.setDescription(TextUtils.trimToNull(request.description()));
         equipment.setCategory(findCategory(request.categoryId()));
         equipment.setAvailability(request.availability());
         equipment.setCondition(request.condition());
-        equipment.setConditionNotes(trimToNull(request.conditionNotes()));
+        equipment.setConditionNotes(TextUtils.trimToNull(request.conditionNotes()));
         log.info("Equipo actualizado: equipmentId={}", id);
     }
 
@@ -171,9 +172,5 @@ public class EquipmentService {
     private EquipmentCategory findCategory(Long categoryId) {
         return categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada"));
-    }
-
-    private static String trimToNull(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }

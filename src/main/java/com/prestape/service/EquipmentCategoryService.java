@@ -24,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.prestape.util.TextUtils;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -91,7 +92,7 @@ public class EquipmentCategoryService {
         }
 
         category.setName(name);
-        category.setDescription(StringUtils.hasText(request.description()) ? request.description().trim() : null);
+        category.setDescription(TextUtils.trimToNull(request.description()));
         log.info("Categoría actualizada: categoryId={}", id);
     }
 

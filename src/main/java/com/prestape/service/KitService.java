@@ -26,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.prestape.util.TextUtils;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -75,7 +76,7 @@ public class KitService {
         kit.setCode(RandomCodeGenerator.generateUnique(
                 KitConstants.CODE_PREFIX, KitConstants.CODE_LENGTH, kitRepository::existsByCode));
         kit.setName(request.name().trim());
-        kit.setDescription(trimToNull(request.description()));
+        kit.setDescription(TextUtils.trimToNull(request.description()));
         kit.setEquipments(findAssignableEquipments(request.equipmentIds(), null));
 
         Kit saved = kitRepository.save(kit);
@@ -87,7 +88,7 @@ public class KitService {
         Kit kit = findKit(id);
 
         kit.setName(request.name().trim());
-        kit.setDescription(trimToNull(request.description()));
+        kit.setDescription(TextUtils.trimToNull(request.description()));
         kit.getEquipments().clear();
         kit.getEquipments().addAll(findAssignableEquipments(request.equipmentIds(), id));
         log.info("Kit actualizado: kitId={}", id);
@@ -137,9 +138,5 @@ public class KitService {
     private Kit findKit(Long id) {
         return kitRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Kit no encontrado"));
-    }
-
-    private static String trimToNull(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }
