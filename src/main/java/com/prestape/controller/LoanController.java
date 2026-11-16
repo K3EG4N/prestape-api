@@ -2,6 +2,7 @@ package com.prestape.controller;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.web.bind.annotation.*;
@@ -18,6 +19,7 @@ import com.prestape.dto.request.loan.returns.RegisterReturnRequest;
 import com.prestape.dto.response.LoanEquipmentOption;
 import com.prestape.dto.response.LoanKitOption;
 import com.prestape.dto.response.LoanListResponse;
+import com.prestape.report.LoanExcelReport;
 import com.prestape.dto.response.LoanRulesResponse;
 import com.prestape.service.LoanService;
 
@@ -28,9 +30,11 @@ import jakarta.validation.Valid;
 public class LoanController {
 
     private final LoanService loanService;
+    private final LoanExcelReport loanExcelReport;
 
-    public LoanController(LoanService loanService) {
+    public LoanController(LoanService loanService, LoanExcelReport loanExcelReport) {
         this.loanService = loanService;
+        this.loanExcelReport = loanExcelReport;
     }
 
     @GetMapping
@@ -41,6 +45,13 @@ public class LoanController {
         return ApiResponse.ok(loanService.list(pagination, filter, currentUser));
     }
 
+
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    public ResponseEntity<byte[]> export(@RequestParam(required = false) String search, @Valid @ModelAttribute LoanFilterRequest filter) {
+        return loanExcelReport.generate(loanService.listForExport(search, filter)).toResponse();
+    }
+      
     @GetMapping("/rules")
     public ApiResponse<LoanRulesResponse> rules(@AuthenticationPrincipal CustomUserDetails currentUser) {
         return ApiResponse.ok(loanService.rules(currentUser));
