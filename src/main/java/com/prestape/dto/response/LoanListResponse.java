@@ -1,5 +1,6 @@
 package com.prestape.dto.response;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -52,7 +53,7 @@ public record LoanListResponse(
         }
     }
 
-    public static LoanListResponse from(Loan loan, Map<Long, Person> peopleByUserId) {
+    public static LoanListResponse from(Loan loan, Map<Long, Person> peopleByUserId, Duration tolerance) {
         Person requester = peopleByUserId.get(loan.getRequester().getId());
 
         return new LoanListResponse(
@@ -72,7 +73,7 @@ public record LoanListResponse(
                 loan.getCancelledAt(),
                 shortName(loan.getRegisteredBy(), peopleByUserId),
                 loan.getNotes(),
-                displayStatus(loan),
+                displayStatus(loan, tolerance),
                 loan.getCreatedAt());
     }
 
@@ -82,8 +83,8 @@ public record LoanListResponse(
         return person != null ? person.getShortName() : user.getEmail();
     }
 
-    private static String displayStatus(Loan loan) {
-        if (loan.isOverdue()) return "OVERDUE";
+    private static String displayStatus(Loan loan, Duration tolerance) {
+        if (loan.isOverdue(tolerance)) return "OVERDUE";
         if (loan.isReturnedLate()) return "RETURNED_LATE";
         return loan.getStatus().name();
     }

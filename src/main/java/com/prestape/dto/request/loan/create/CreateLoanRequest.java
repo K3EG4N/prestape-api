@@ -11,7 +11,7 @@ import jakarta.validation.constraints.Size;
 public record CreateLoanRequest(
         Long requesterId,
 
-        @Size(max = LoanConstants.MAX_EQUIPMENTS, message = "Puede seleccionar como máximo 2 equipos")
+        @Size(max = LoanConstants.MAX_EQUIPMENTS, message = "Puede seleccionar como máximo " + LoanConstants.MAX_EQUIPMENTS + " equipos")
         List<@NotNull Long> equipmentIds,
 
         Long kitId,

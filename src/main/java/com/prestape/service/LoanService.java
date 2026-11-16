@@ -1,5 +1,6 @@
 package com.prestape.service;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
@@ -18,6 +19,8 @@ import com.prestape.dto.CustomUserDetails;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
 import com.prestape.dto.common.SelectOption;
+import com.prestape.dto.loan.LoanLimit;
+import com.prestape.dto.loan.LoanRules;
 import com.prestape.dto.request.loan.create.CreateLoanRequest;
 import com.prestape.dto.request.loan.list.LoanFilterRequest;
 import com.prestape.dto.request.loan.item.LoanItemConditionRequest;
@@ -26,6 +29,7 @@ import com.prestape.dto.request.loan.returns.RegisterReturnRequest;
 import com.prestape.dto.response.LoanEquipmentOption;
 import com.prestape.dto.response.LoanKitOption;
 import com.prestape.dto.response.LoanListResponse;
+import com.prestape.dto.response.LoanRulesResponse;
 import com.prestape.entity.Equipment;
 import com.prestape.entity.Kit;
 import com.prestape.entity.Loan;
@@ -68,6 +72,7 @@ public class LoanService {
     private final EquipmentRepository equipmentRepository;
     private final KitRepository kitRepository;
     private final ReportProperties reportProperties;
+    private final SettingsService settingsService;
 
     public LoanService(
             LoanRepository loanRepository,
@@ -76,6 +81,7 @@ public class LoanService {
             EquipmentRepository equipmentRepository,
             KitRepository kitRepository,
             ReportProperties reportProperties
+            SettingsService settingsService
     ) {
         this.loanRepository = loanRepository;
         this.userRepository = userRepository;
@@ -83,12 +89,14 @@ public class LoanService {
         this.equipmentRepository = equipmentRepository;
         this.kitRepository = kitRepository;
         this.reportProperties = reportProperties;
+        this.settingsService = settingsService;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<LoanListResponse> list(
             PaginationRequest pagination, LoanFilterRequest filter, CustomUserDetails currentUser) {
-        Specification<Loan> spec = buildSpecification(pagination.search(), filter);
+        Duration tolerance = settingsService.tolerance();
+        Specification<Loan> spec = buildSpecification(pagination.search(), filter, tolerance);
         if (!isManager(currentUser)) {
             spec = spec.and(LoanSpecifications.requestedBy(currentUser.getId()));
         }
@@ -96,7 +104,16 @@ public class LoanService {
         Page<Loan> loans = loanRepository.findAll(spec, pagination.toPageable(LoanConstants.DEFAULT_SORT));
         Map<Long, Person> peopleByUserId = findPeopleByUserId(loans.getContent());
 
-        return PageResponse.from(loans.map(loan -> LoanListResponse.from(loan, peopleByUserId)));
+        return PageResponse.from(loans.map(loan -> LoanListResponse.from(loan, peopleByUserId, tolerance)));
+    }
+
+    @Transactional(readOnly = true)
+    public LoanRulesResponse rules(CustomUserDetails currentUser) {
+        LoanRules rules = settingsService.loanRules();
+        LoanLimit limit = isManager(currentUser)
+                ? null
+                : settingsService.limitFor(findUser(currentUser.getId())).orElse(null);
+        return LoanRulesResponse.from(rules, limit);
     }
 
     @Transactional(readOnly = true)
@@ -153,11 +170,15 @@ public class LoanService {
         if (!request.scheduledReturnAt().isAfter(request.scheduledPickupAt())) {
             throw new BusinessException("La devolución debe ser posterior al recojo");
         }
+        validateSchedule(request, settingsService.loanRules(), isManager(currentUser));
+
+        User requester = findRequester(resolveRequesterId(request, currentUser));
+        validateLimits(requester, request.equipmentIds().size());
 
         Loan loan = new Loan();
         loan.setCode(RandomCodeGenerator.generateUnique(
                 LoanConstants.CODE_PREFIX, LoanConstants.CODE_LENGTH, loanRepository::existsByCode));
-        loan.setRequester(findRequester(resolveRequesterId(request, currentUser)));
+        loan.setRequester(requester);
         loan.setRegisteredBy(findUser(currentUser.getId()));
         loan.setScheduledPickupAt(request.scheduledPickupAt());
         loan.setScheduledReturnAt(request.scheduledReturnAt());
@@ -188,12 +209,7 @@ public class LoanService {
             throw new BusinessException("Solo se pueden cancelar préstamos pendientes de recojo");
         }
 
-        loan.setStatus(LoanStatus.CANCELLED);
-        loan.setCancelledAt(Instant.now());
-        loan.getItems().stream()
-                .map(LoanItem::getEquipment)
-                .filter(equipment -> equipment.getAvailability() == EquipmentAvailability.LOANED)
-                .forEach(Equipment::releaseFromLoan);
+        markCancelled(loan, Instant.now());
 
         log.info("Préstamo cancelado: loanId={}, code={}, by={}", loan.getId(), loan.getCode(), currentUser.getId());
     }
@@ -206,6 +222,10 @@ public class LoanService {
         if (loan.getStatus() != LoanStatus.PENDING_PICKUP) {
             throw new BusinessException("Solo se puede registrar el recojo de préstamos pendientes");
         }
+        Instant now = Instant.now();
+        if (now.isAfter(loan.getScheduledPickupAt().plus(settingsService.loanRules().autoCancel()))) {
+            throw new BusinessException("Venció el plazo de recojo; el préstamo se cancelará automáticamente");
+        }
 
         request.items().stream()
                 .filter(item -> item.condition() == EquipmentCondition.DAMAGED)
@@ -217,7 +237,7 @@ public class LoanService {
         applyConditions(loan, request.items(), LoanItem::setPickupCondition);
 
         loan.setStatus(LoanStatus.ACTIVE);
-        loan.setPickedUpAt(Instant.now());
+        loan.setPickedUpAt(now);
         loan.setDeliveredBy(findUser(currentUser.getId()));
 
         log.info("Recojo registrado: loanId={}, code={}, by={}", loan.getId(), loan.getCode(), currentUser.getId());
@@ -239,12 +259,72 @@ public class LoanService {
                 .filter(equipment -> equipment.getAvailability() == EquipmentAvailability.LOANED)
                 .forEach(Equipment::releaseFromLoan);
 
+        Instant now = Instant.now();
         loan.setStatus(LoanStatus.RETURNED);
-        loan.setReturnedAt(Instant.now());
+        loan.setReturnedAt(now);
+        loan.setReturnedLate(loan.isPastDue(now, settingsService.tolerance()));
         loan.setReceivedBy(findUser(currentUser.getId()));
 
         log.info("Devolución registrada: loanId={}, code={}, late={}, by={}",
                 loan.getId(), loan.getCode(), loan.isReturnedLate(), currentUser.getId());
+    }
+
+    @Transactional
+    public int cancelExpiredPickups() {
+        Instant now = Instant.now();
+        Duration autoCancel = settingsService.loanRules().autoCancel();
+        List<Loan> expired = loanRepository.findAllByStatusAndScheduledPickupAtBefore(
+                LoanStatus.PENDING_PICKUP, now.minus(autoCancel));
+
+        expired.forEach(loan -> {
+            markCancelled(loan, now);
+            log.info("Préstamo cancelado automáticamente: loanId={}, code={}", loan.getId(), loan.getCode());
+        });
+        return expired.size();
+    }
+
+    private void markCancelled(Loan loan, Instant cancelledAt) {
+        loan.setStatus(LoanStatus.CANCELLED);
+        loan.setCancelledAt(cancelledAt);
+        loan.getItems().stream()
+                .map(LoanItem::getEquipment)
+                .filter(equipment -> equipment.getAvailability() == EquipmentAvailability.LOANED)
+                .forEach(Equipment::releaseFromLoan);
+    }
+
+    private void validateSchedule(CreateLoanRequest request, LoanRules rules, boolean manager) {
+        Instant pickupAt = request.scheduledPickupAt();
+        Instant returnAt = request.scheduledReturnAt();
+
+        if (!manager && pickupAt.isBefore(Instant.now().plus(rules.minAdvance()))) {
+            throw new BusinessException("El recojo debe programarse con al menos "
+                    + rules.minAdvance().toHours() + " h de anticipación");
+        }
+        if (Duration.between(pickupAt, returnAt).compareTo(rules.maxDuration()) > 0) {
+            throw new BusinessException("El préstamo no puede durar más de "
+                    + rules.maxDuration().toDays() + " días");
+        }
+        if (!rules.isWithinBusinessHours(pickupAt)) {
+            throw new BusinessException("El recojo debe programarse dentro del horario de atención");
+        }
+        if (!rules.isWithinBusinessHours(returnAt)) {
+            throw new BusinessException("La devolución debe programarse dentro del horario de atención");
+        }
+    }
+
+    private void validateLimits(User requester, int looseEquipments) {
+        settingsService.limitFor(requester).ifPresent(limit -> {
+            if (looseEquipments > limit.maxEquipments()) {
+                throw new BusinessException("El solicitante puede llevar como máximo "
+                        + limit.maxEquipments() + " equipos sueltos; usa un kit para llevar más");
+            }
+            long openLoans = loanRepository.countByRequesterIdAndStatusIn(
+                    requester.getId(), LoanConstants.OPEN_STATUSES);
+            if (openLoans >= limit.maxActiveLoans()) {
+                throw new BusinessException("El solicitante ya alcanzó el máximo de "
+                        + limit.maxActiveLoans() + " préstamo(s) pendiente(s) o en curso para su rol");
+            }
+        });
     }
 
     private void applyConditions(
@@ -332,14 +412,14 @@ public class LoanService {
                 .orElseThrow(() -> new ResourceNotFoundException("Usuario no encontrado"));
     }
 
-    private Specification<Loan> buildSpecification(String search, LoanFilterRequest filter) {
+    private Specification<Loan> buildSpecification(String search, LoanFilterRequest filter, Duration tolerance) {
         Specification<Loan> spec = Specification.unrestricted();
 
         if (StringUtils.hasText(search)) {
             spec = spec.and(LoanSpecifications.matchesSearch(search.trim()));
         }
         if (!filter.statuses().isEmpty()) {
-            spec = spec.and(LoanSpecifications.hasAnyStatus(filter.statuses()));
+            spec = spec.and(LoanSpecifications.hasAnyStatus(filter.statuses(), tolerance));
         }
         if (filter.pickupFrom() != null) {
             spec = spec.and(LoanSpecifications.scheduledPickupFrom(filter.pickupFrom()));

@@ -20,6 +20,7 @@ import com.prestape.dto.response.LoanEquipmentOption;
 import com.prestape.dto.response.LoanKitOption;
 import com.prestape.dto.response.LoanListResponse;
 import com.prestape.report.LoanExcelReport;
+import com.prestape.dto.response.LoanRulesResponse;
 import com.prestape.service.LoanService;
 
 import jakarta.validation.Valid;
@@ -44,12 +45,16 @@ public class LoanController {
         return ApiResponse.ok(loanService.list(pagination, filter, currentUser));
     }
 
+
     @GetMapping("/export")
     @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
-    public ResponseEntity<byte[]> export(
-            @RequestParam(required = false) String search,
-            @Valid @ModelAttribute LoanFilterRequest filter) {
+    public ResponseEntity<byte[]> export(@RequestParam(required = false) String search, @Valid @ModelAttribute LoanFilterRequest filter) {
         return loanExcelReport.generate(loanService.listForExport(search, filter)).toResponse();
+    }
+      
+    @GetMapping("/rules")
+    public ApiResponse<LoanRulesResponse> rules(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ApiResponse.ok(loanService.rules(currentUser));
     }
 
     @GetMapping("/options/requesters")

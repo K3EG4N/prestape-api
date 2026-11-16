@@ -1,5 +1,6 @@
 package com.prestape.entity;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -46,6 +47,9 @@ public class Loan extends BaseEntity {
 
     private Instant cancelledAt;
 
+    @Column(nullable = false)
+    private boolean returnedLate;
+
     @ManyToOne(fetch = FetchType.LAZY, optional = false)
     @JoinColumn(name = "registered_by_id", nullable = false)
     private User registeredBy;
@@ -70,11 +74,11 @@ public class Loan extends BaseEntity {
         items.add(item);
     }
 
-    public boolean isOverdue() {
-        return status == LoanStatus.ACTIVE && Instant.now().isAfter(scheduledReturnAt);
+    public boolean isOverdue(Duration tolerance) {
+        return status == LoanStatus.ACTIVE && isPastDue(Instant.now(), tolerance);
     }
 
-    public boolean isReturnedLate() {
-        return returnedAt != null && returnedAt.isAfter(scheduledReturnAt);
+    public boolean isPastDue(Instant instant, Duration tolerance) {
+        return instant.isAfter(scheduledReturnAt.plus(tolerance));
     }
 }
