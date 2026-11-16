@@ -14,6 +14,7 @@ import com.prestape.dto.response.EquipmentListResponse;
 import com.prestape.entity.Equipment;
 import com.prestape.entity.EquipmentCategory;
 import com.prestape.entity.enums.EquipmentAvailability;
+import com.prestape.entity.enums.EquipmentCondition;
 import com.prestape.exception.custom.BusinessException;
 import com.prestape.exception.custom.ConflictException;
 import com.prestape.exception.custom.ResourceNotFoundException;
@@ -94,6 +95,9 @@ public class EquipmentService {
         equipment.setCategory(findCategory(request.categoryId()));
         equipment.setCondition(request.condition());
         equipment.setConditionNotes(TextUtils.trimToNull(request.conditionNotes()));
+        if (request.condition() == EquipmentCondition.DAMAGED) {
+            equipment.setAvailability(EquipmentAvailability.IN_MAINTENANCE);
+        }
 
         Equipment saved = equipmentRepository.save(equipment);
         log.info("Equipo creado: equipmentId={}, code={}", saved.getId(), saved.getCode());
@@ -109,6 +113,7 @@ public class EquipmentService {
         }
 
         validateAvailabilityChange(equipment.getAvailability(), request.availability());
+        validateDamagedState(equipment.getAvailability(), request.availability(), request.condition());
 
         equipment.setName(request.name().trim());
         equipment.setSerialNumber(serialNumber);
@@ -143,6 +148,17 @@ public class EquipmentService {
         if (requested == EquipmentAvailability.LOANED) {
             throw new BusinessException("La disponibilidad Prestado se asigna al registrar un préstamo");
         }
+    }
+
+    private void validateDamagedState(
+            EquipmentAvailability current, EquipmentAvailability requested, EquipmentCondition condition) {
+        if (Equipment.isAllowedState(requested, condition)) {
+            return;
+        }
+        if (current == EquipmentAvailability.LOANED) {
+            throw new BusinessException("Un equipo prestado se marca como dañado al registrar su devolución");
+        }
+        throw new BusinessException("Un equipo dañado solo puede estar en mantenimiento o de baja");
     }
 
     private Specification<Equipment> buildSpecification(String search, EquipmentFilterRequest filter) {

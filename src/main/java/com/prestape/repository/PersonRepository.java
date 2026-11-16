@@ -3,6 +3,7 @@ package com.prestape.repository;
 import com.prestape.entity.Person;
 import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.Collection;
 import java.util.List;
@@ -21,4 +22,13 @@ public interface PersonRepository extends JpaRepository<Person, Long> {
     boolean existsByDocumentNumberAndDeletedAtIsNullAndIdNot(String documentNumber, Long id);
 
     Optional<Person> findByUserIdAndDeletedAtIsNull(Long userId);
-}
+
+    @Query("""
+            select p from Person p join fetch p.user u
+            where p.deletedAt is null
+              and u.status = com.prestape.entity.enums.UserStatus.ACTIVE
+              and u.profileCompleted = true
+            order by p.firstName, p.paternalSurname
+            """)
+    List<Person> findLoanRequesters();
+}

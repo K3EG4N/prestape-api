@@ -27,6 +27,12 @@ public final class EquipmentSpecifications {
                 .toArray(Predicate[]::new));
     }
 
+    public static Specification<Equipment> isLendable() {
+        return (root, query, cb) -> cb.and(
+                cb.equal(root.get("availability"), EquipmentAvailability.AVAILABLE),
+                cb.notEqual(root.get("condition"), EquipmentCondition.DAMAGED));
+    }
+
     public static Specification<Equipment> hasAnyCategory(Collection<Long> categoryIds) {
         return (root, query, cb) -> root.get("category").get("id").in(categoryIds);
     }
