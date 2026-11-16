@@ -81,6 +81,12 @@ public class Person extends BaseEntity{
                 .collect(Collectors.joining(" "));
     }
 
+    public String getShortName() {
+        return Stream.of(firstName, paternalSurname, maternalSurname)
+                .filter(s -> s != null && !s.isBlank())
+                .collect(Collectors.joining(" "));
+    }
+
     public String getDisplayName() {
         if (middleName != null && !middleName.isBlank()) {
             return String.join(" ", firstName, middleName, paternalSurname);

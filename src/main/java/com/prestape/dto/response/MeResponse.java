@@ -22,10 +22,11 @@ public record MeResponse(
         }
     }
 
-    public record PersonInfo(String code, String displayName, String documentNumber) {
+    public record PersonInfo(String code, String displayName, String shortName, String documentNumber) {
         static PersonInfo from(Person person) {
             if (person == null) return null;
-            return new PersonInfo(person.getCode(), person.getDisplayName(), person.getDocumentNumber());
+            return new PersonInfo(
+                    person.getCode(), person.getDisplayName(), person.getShortName(), person.getDocumentNumber());
         }
     }
 
