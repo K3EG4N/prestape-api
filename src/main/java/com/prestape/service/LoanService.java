@@ -80,7 +80,7 @@ public class LoanService {
             PersonRepository personRepository,
             EquipmentRepository equipmentRepository,
             KitRepository kitRepository,
-            ReportProperties reportProperties
+            ReportProperties reportProperties,
             SettingsService settingsService
     ) {
         this.loanRepository = loanRepository;
@@ -118,7 +118,8 @@ public class LoanService {
 
     @Transactional(readOnly = true)
     public List<LoanListResponse> listForExport(String search, LoanFilterRequest filter) {
-        Specification<Loan> spec = buildSpecification(search, filter);
+        Duration tolerance = settingsService.tolerance();
+        Specification<Loan> spec = buildSpecification(search, filter, tolerance);
 
         int maxRows = reportProperties.maxRows();
         if (loanRepository.count(spec) > maxRows) {
@@ -130,7 +131,7 @@ public class LoanService {
         Map<Long, Person> peopleByUserId = findPeopleByUserId(loans);
 
         return loans.stream()
-                .map(loan -> LoanListResponse.from(loan, peopleByUserId))
+                .map(loan -> LoanListResponse.from(loan, peopleByUserId, tolerance))
                 .toList();
     }
 
