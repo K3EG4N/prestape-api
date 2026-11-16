@@ -1,5 +1,6 @@
 package com.prestape.specifications;
 
+import java.time.Duration;
 import java.time.Instant;
 import java.util.Arrays;
 import java.util.Collection;
@@ -28,21 +29,21 @@ public final class LoanSpecifications {
         return (root, query, cb) -> cb.equal(root.get("requester").get("id"), userId);
     }
 
-    public static Specification<Loan> hasAnyStatus(Collection<LoanStatusFilter> statuses) {
+    public static Specification<Loan> hasAnyStatus(Collection<LoanStatusFilter> statuses, Duration tolerance) {
         return (root, query, cb) -> {
-            Instant now = Instant.now();
+            Instant overdueThreshold = Instant.now().minus(tolerance);
             Expression<Instant> scheduledReturnAt = root.get("scheduledReturnAt");
-            Expression<Instant> returnedAt = root.get("returnedAt");
+            Expression<Boolean> returnedLate = root.get("returnedLate");
             Predicate active = cb.equal(root.get("status"), LoanStatus.ACTIVE);
             Predicate returned = cb.equal(root.get("status"), LoanStatus.RETURNED);
 
             Predicate[] predicates = statuses.stream()
                     .map(status -> switch (status) {
                         case PENDING_PICKUP -> cb.equal(root.get("status"), LoanStatus.PENDING_PICKUP);
-                        case ACTIVE -> cb.and(active, cb.greaterThanOrEqualTo(scheduledReturnAt, now));
-                        case OVERDUE -> cb.and(active, cb.lessThan(scheduledReturnAt, now));
-                        case RETURNED -> cb.and(returned, cb.lessThanOrEqualTo(returnedAt, scheduledReturnAt));
-                        case RETURNED_LATE -> cb.and(returned, cb.greaterThan(returnedAt, scheduledReturnAt));
+                        case ACTIVE -> cb.and(active, cb.greaterThanOrEqualTo(scheduledReturnAt, overdueThreshold));
+                        case OVERDUE -> cb.and(active, cb.lessThan(scheduledReturnAt, overdueThreshold));
+                        case RETURNED -> cb.and(returned, cb.isFalse(returnedLate));
+                        case RETURNED_LATE -> cb.and(returned, cb.isTrue(returnedLate));
                         case CANCELLED -> cb.equal(root.get("status"), LoanStatus.CANCELLED);
                     })
                     .toArray(Predicate[]::new);

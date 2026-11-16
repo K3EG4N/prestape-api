@@ -18,6 +18,7 @@ import com.prestape.dto.request.loan.returns.RegisterReturnRequest;
 import com.prestape.dto.response.LoanEquipmentOption;
 import com.prestape.dto.response.LoanKitOption;
 import com.prestape.dto.response.LoanListResponse;
+import com.prestape.dto.response.LoanRulesResponse;
 import com.prestape.service.LoanService;
 
 import jakarta.validation.Valid;
@@ -38,6 +39,11 @@ public class LoanController {
             @Valid @ModelAttribute LoanFilterRequest filter,
             @AuthenticationPrincipal CustomUserDetails currentUser) {
         return ApiResponse.ok(loanService.list(pagination, filter, currentUser));
+    }
+
+    @GetMapping("/rules")
+    public ApiResponse<LoanRulesResponse> rules(@AuthenticationPrincipal CustomUserDetails currentUser) {
+        return ApiResponse.ok(loanService.rules(currentUser));
     }
 
     @GetMapping("/options/requesters")
