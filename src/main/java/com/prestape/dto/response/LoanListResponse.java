@@ -14,6 +14,7 @@ public record LoanListResponse(
         Long id,
         String code,
         RequesterInfo requester,
+        KitInfo kit,
         List<ItemInfo> items,
         Instant scheduledPickupAt,
         Instant pickedUpAt,
@@ -21,10 +22,15 @@ public record LoanListResponse(
         Instant returnedAt,
         String deliveredBy,
         String receivedBy,
+        Instant cancelledAt,
+        String registeredBy,
         String notes,
         String status,
         Instant createdAt
 ) {
+    public record KitInfo(String code, String name) {
+    }
+
     public record RequesterInfo(String fullName, String code) {
     }
 
@@ -55,6 +61,7 @@ public record LoanListResponse(
                 new RequesterInfo(
                         requester != null ? requester.getFullName() : loan.getRequester().getEmail(),
                         requester != null ? requester.getCode() : null),
+                loan.getKit() != null ? new KitInfo(loan.getKit().getCode(), loan.getKit().getName()) : null,
                 loan.getItems().stream().map(ItemInfo::from).toList(),
                 loan.getScheduledPickupAt(),
                 loan.getPickedUpAt(),
@@ -62,6 +69,8 @@ public record LoanListResponse(
                 loan.getReturnedAt(),
                 shortName(loan.getDeliveredBy(), peopleByUserId),
                 shortName(loan.getReceivedBy(), peopleByUserId),
+                loan.getCancelledAt(),
+                shortName(loan.getRegisteredBy(), peopleByUserId),
                 loan.getNotes(),
                 displayStatus(loan),
                 loan.getCreatedAt());

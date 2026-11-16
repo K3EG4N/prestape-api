@@ -11,6 +11,7 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import com.prestape.config.ReportProperties;
 import com.prestape.constants.KitConstants;
 import com.prestape.constants.LoanConstants;
 import com.prestape.dto.CustomUserDetails;
@@ -66,19 +67,22 @@ public class LoanService {
     private final PersonRepository personRepository;
     private final EquipmentRepository equipmentRepository;
     private final KitRepository kitRepository;
+    private final ReportProperties reportProperties;
 
     public LoanService(
             LoanRepository loanRepository,
             UserRepository userRepository,
             PersonRepository personRepository,
             EquipmentRepository equipmentRepository,
-            KitRepository kitRepository
+            KitRepository kitRepository,
+            ReportProperties reportProperties
     ) {
         this.loanRepository = loanRepository;
         this.userRepository = userRepository;
         this.personRepository = personRepository;
         this.equipmentRepository = equipmentRepository;
         this.kitRepository = kitRepository;
+        this.reportProperties = reportProperties;
     }
 
     @Transactional(readOnly = true)
@@ -93,6 +97,24 @@ public class LoanService {
         Map<Long, Person> peopleByUserId = findPeopleByUserId(loans.getContent());
 
         return PageResponse.from(loans.map(loan -> LoanListResponse.from(loan, peopleByUserId)));
+    }
+
+    @Transactional(readOnly = true)
+    public List<LoanListResponse> listForExport(String search, LoanFilterRequest filter) {
+        Specification<Loan> spec = buildSpecification(search, filter);
+
+        int maxRows = reportProperties.maxRows();
+        if (loanRepository.count(spec) > maxRows) {
+            throw new BusinessException(
+                    "La exportación supera las " + maxRows + " filas. Aplica más filtros");
+        }
+
+        List<Loan> loans = loanRepository.findAll(spec, LoanConstants.DEFAULT_SORT);
+        Map<Long, Person> peopleByUserId = findPeopleByUserId(loans);
+
+        return loans.stream()
+                .map(loan -> LoanListResponse.from(loan, peopleByUserId))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -337,7 +359,7 @@ public class LoanService {
 
     private Map<Long, Person> findPeopleByUserId(List<Loan> loans) {
         Set<Long> userIds = loans.stream()
-                .flatMap(loan -> Stream.of(loan.getRequester(), loan.getDeliveredBy(), loan.getReceivedBy()))
+                .flatMap(loan -> Stream.of(loan.getRequester(), loan.getDeliveredBy(), loan.getReceivedBy(), loan.getRegisteredBy()))
                 .filter(Objects::nonNull)
                 .map(User::getId)
                 .collect(Collectors.toSet());
