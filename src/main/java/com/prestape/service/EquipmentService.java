@@ -2,6 +2,7 @@ package com.prestape.service;
 
 import java.util.List;
 
+import com.prestape.config.ReportProperties;
 import com.prestape.constants.EquipmentConstants;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
@@ -13,9 +14,10 @@ import com.prestape.dto.response.EquipmentListResponse;
 import com.prestape.entity.Equipment;
 import com.prestape.entity.EquipmentCategory;
 import com.prestape.entity.enums.EquipmentAvailability;
-import com.prestape.exception.BusinessException;
-import com.prestape.exception.ConflictException;
-import com.prestape.exception.ResourceNotFoundException;
+import com.prestape.entity.enums.EquipmentCondition;
+import com.prestape.exception.custom.BusinessException;
+import com.prestape.exception.custom.ConflictException;
+import com.prestape.exception.custom.ResourceNotFoundException;
 import com.prestape.repository.EquipmentCategoryRepository;
 import com.prestape.repository.EquipmentRepository;
 import com.prestape.specifications.EquipmentSpecifications;
@@ -25,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.prestape.util.TextUtils;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -34,13 +37,16 @@ public class EquipmentService {
 
     private final EquipmentRepository equipmentRepository;
     private final EquipmentCategoryRepository categoryRepository;
+    private final ReportProperties reportProperties;
 
     public EquipmentService(
             EquipmentRepository equipmentRepository,
-            EquipmentCategoryRepository categoryRepository
+            EquipmentCategoryRepository categoryRepository,
+            ReportProperties reportProperties
     ) {
         this.equipmentRepository = equipmentRepository;
         this.categoryRepository = categoryRepository;
+        this.reportProperties = reportProperties;
     }
 
     @Transactional(readOnly = true)
@@ -48,6 +54,21 @@ public class EquipmentService {
         return PageResponse.from(equipmentRepository
                 .findAll(buildSpecification(pagination.search(), filter), pagination.toPageable(EquipmentConstants.DEFAULT_SORT))
                 .map(EquipmentListResponse::from));
+    }
+
+    @Transactional(readOnly = true)
+    public List<EquipmentListResponse> listForExport(String search, EquipmentFilterRequest filter) {
+        Specification<Equipment> spec = buildSpecification(search, filter);
+
+        int maxRows = reportProperties.maxRows();
+        if (equipmentRepository.count(spec) > maxRows) {
+            throw new BusinessException(
+                    "La exportación supera las " + maxRows + " filas. Aplica más filtros");
+        }
+
+        return equipmentRepository.findAll(spec, EquipmentConstants.DEFAULT_SORT).stream()
+                .map(EquipmentListResponse::from)
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -70,10 +91,13 @@ public class EquipmentService {
                 EquipmentConstants.CODE_PREFIX, EquipmentConstants.CODE_LENGTH, equipmentRepository::existsByCode));
         equipment.setName(request.name().trim());
         equipment.setSerialNumber(serialNumber);
-        equipment.setDescription(trimToNull(request.description()));
+        equipment.setDescription(TextUtils.trimToNull(request.description()));
         equipment.setCategory(findCategory(request.categoryId()));
         equipment.setCondition(request.condition());
-        equipment.setConditionNotes(trimToNull(request.conditionNotes()));
+        equipment.setConditionNotes(TextUtils.trimToNull(request.conditionNotes()));
+        if (request.condition() == EquipmentCondition.DAMAGED) {
+            equipment.setAvailability(EquipmentAvailability.IN_MAINTENANCE);
+        }
 
         Equipment saved = equipmentRepository.save(equipment);
         log.info("Equipo creado: equipmentId={}, code={}", saved.getId(), saved.getCode());
@@ -89,14 +113,15 @@ public class EquipmentService {
         }
 
         validateAvailabilityChange(equipment.getAvailability(), request.availability());
+        validateDamagedState(equipment.getAvailability(), request.availability(), request.condition());
 
         equipment.setName(request.name().trim());
         equipment.setSerialNumber(serialNumber);
-        equipment.setDescription(trimToNull(request.description()));
+        equipment.setDescription(TextUtils.trimToNull(request.description()));
         equipment.setCategory(findCategory(request.categoryId()));
         equipment.setAvailability(request.availability());
         equipment.setCondition(request.condition());
-        equipment.setConditionNotes(trimToNull(request.conditionNotes()));
+        equipment.setConditionNotes(TextUtils.trimToNull(request.conditionNotes()));
         log.info("Equipo actualizado: equipmentId={}", id);
     }
 
@@ -123,6 +148,17 @@ public class EquipmentService {
         if (requested == EquipmentAvailability.LOANED) {
             throw new BusinessException("La disponibilidad Prestado se asigna al registrar un préstamo");
         }
+    }
+
+    private void validateDamagedState(
+            EquipmentAvailability current, EquipmentAvailability requested, EquipmentCondition condition) {
+        if (Equipment.isAllowedState(requested, condition)) {
+            return;
+        }
+        if (current == EquipmentAvailability.LOANED) {
+            throw new BusinessException("Un equipo prestado se marca como dañado al registrar su devolución");
+        }
+        throw new BusinessException("Un equipo dañado solo puede estar en mantenimiento o de baja");
     }
 
     private Specification<Equipment> buildSpecification(String search, EquipmentFilterRequest filter) {
@@ -152,9 +188,5 @@ public class EquipmentService {
     private EquipmentCategory findCategory(Long categoryId) {
         return categoryRepository.findById(categoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Categoría no encontrada"));
-    }
-
-    private static String trimToNull(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }

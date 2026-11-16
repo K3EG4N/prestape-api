@@ -5,12 +5,12 @@ import com.prestape.dto.request.person.create.CreatePersonRequest;
 import com.prestape.dto.request.person.update.UpdatePersonRequest;
 import com.prestape.entity.Person;
 import com.prestape.entity.User;
-import com.prestape.exception.ConflictException;
+import com.prestape.exception.custom.ConflictException;
 import com.prestape.repository.PersonRepository;
 import com.prestape.util.RandomCodeGenerator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.util.StringUtils;
+import com.prestape.util.TextUtils;
 
 import java.util.Optional;
 
@@ -39,9 +39,9 @@ public class PersonService {
                         PersonConstants.CODE_PREFIX, PersonConstants.CODE_LENGTH, personRepository::existsByCode),
                 request.documentNumber(),
                 request.firstName().trim(),
-                trimToNull(request.middleName()),
+                TextUtils.trimToNull(request.middleName()),
                 request.paternalSurname().trim(),
-                trimToNull(request.maternalSurname()),
+                TextUtils.trimToNull(request.maternalSurname()),
                 request.phone());
 
         Person saved = personRepository.save(person);
@@ -63,13 +63,9 @@ public class PersonService {
         person.update(
                 request.documentNumber(),
                 request.firstName().trim(),
-                trimToNull(request.middleName()),
+                TextUtils.trimToNull(request.middleName()),
                 request.paternalSurname().trim(),
-                trimToNull(request.maternalSurname()),
+                TextUtils.trimToNull(request.maternalSurname()),
                 request.phone());
-    }
-
-    private static String trimToNull(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }

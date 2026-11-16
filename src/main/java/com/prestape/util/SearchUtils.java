@@ -7,7 +7,6 @@ import jakarta.persistence.criteria.Expression;
 import jakarta.persistence.criteria.Predicate;
 
 public final class SearchUtils {
-
     private static final String ACCENTED = "áéíóúüñàèìòù";
     private static final String PLAIN = "aeiouunaeiou";
 

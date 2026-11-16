@@ -19,6 +19,11 @@ import org.springframework.web.method.annotation.MethodArgumentTypeMismatchExcep
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import com.prestape.dto.common.ApiResponse;
+import com.prestape.exception.custom.BusinessException;
+import com.prestape.exception.custom.ConflictException;
+import com.prestape.exception.custom.ResourceNotFoundException;
+import com.prestape.exception.custom.TooManyRequestsException;
+import com.prestape.exception.custom.UnauthorizedException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -43,6 +48,11 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
         log.warn("Intento de inicio de sesión fallido");
         return build(HttpStatus.UNAUTHORIZED, "Email o contraseña incorrectos");
+    }
+
+    @ExceptionHandler(TooManyRequestsException.class)
+    public ResponseEntity<ApiResponse<Void>> handleTooManyRequests(TooManyRequestsException ex) {
+        return build(HttpStatus.TOO_MANY_REQUESTS, ex.getMessage());
     }
 
     @ExceptionHandler(AccessDeniedException.class)

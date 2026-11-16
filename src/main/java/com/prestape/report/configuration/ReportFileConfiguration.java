@@ -1,11 +1,11 @@
-package com.prestape.report;
+package com.prestape.report.configuration;
 
 import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 
-public record ReportFile(String filename, MediaType contentType, byte[] content) {
+public record ReportFileConfiguration(String filename, MediaType contentType, byte[] content) {
 
     public static final MediaType XLSX = MediaType.parseMediaType(
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");

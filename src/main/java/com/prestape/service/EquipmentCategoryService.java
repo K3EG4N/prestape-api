@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import com.prestape.config.ReportProperties;
 import com.prestape.constants.CategoryConstants;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
@@ -11,9 +12,9 @@ import com.prestape.dto.common.SelectOption;
 import com.prestape.dto.request.category.update.UpdateCategoryRequest;
 import com.prestape.dto.response.EquipmentCategoryListResponse;
 import com.prestape.entity.EquipmentCategory;
-import com.prestape.exception.BusinessException;
-import com.prestape.exception.ConflictException;
-import com.prestape.exception.ResourceNotFoundException;
+import com.prestape.exception.custom.BusinessException;
+import com.prestape.exception.custom.ConflictException;
+import com.prestape.exception.custom.ResourceNotFoundException;
 import com.prestape.repository.EquipmentCategoryRepository;
 import com.prestape.repository.EquipmentRepository;
 import com.prestape.specifications.EquipmentCategorySpecifications;
@@ -23,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.prestape.util.TextUtils;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -32,27 +34,45 @@ public class EquipmentCategoryService {
 
     private final EquipmentCategoryRepository categoryRepository;
     private final EquipmentRepository equipmentRepository;
+    private final ReportProperties reportProperties;
 
     public EquipmentCategoryService(
             EquipmentCategoryRepository categoryRepository,
-            EquipmentRepository equipmentRepository
+            EquipmentRepository equipmentRepository,
+            ReportProperties reportProperties
     ) {
         this.categoryRepository = categoryRepository;
         this.equipmentRepository = equipmentRepository;
+        this.reportProperties = reportProperties;
     }
 
     @Transactional(readOnly = true)
     public PageResponse<EquipmentCategoryListResponse> list(PaginationRequest pagination) {
-        Specification<EquipmentCategory> spec = pagination.search() == null
-                ? Specification.unrestricted()
-                : EquipmentCategorySpecifications.matchesSearch(pagination.search());
-
-        Page<EquipmentCategory> categories = categoryRepository.findAll(spec, pagination.toPageable(CategoryConstants.DEFAULT_SORT));
+        Page<EquipmentCategory> categories = categoryRepository.findAll(
+                buildSpecification(pagination.search()), pagination.toPageable(CategoryConstants.DEFAULT_SORT));
 
         Map<Long, Long> countByCategoryId = countEquipmentByCategory(categories.map(EquipmentCategory::getId).toList());
 
         return PageResponse.from(categories.map(c ->
                 EquipmentCategoryListResponse.from(c, countByCategoryId.getOrDefault(c.getId(), 0L))));
+    }
+
+    @Transactional(readOnly = true)
+    public List<EquipmentCategoryListResponse> listForExport(String search) {
+        Specification<EquipmentCategory> spec = buildSpecification(search);
+
+        int maxRows = reportProperties.maxRows();
+        if (categoryRepository.count(spec) > maxRows) {
+            throw new BusinessException(
+                    "La exportación supera las " + maxRows + " filas. Aplica más filtros");
+        }
+
+        List<EquipmentCategory> categories = categoryRepository.findAll(spec, CategoryConstants.DEFAULT_SORT);
+        Map<Long, Long> countByCategoryId = countEquipmentByCategory(categories.stream().map(EquipmentCategory::getId).toList());
+
+        return categories.stream()
+                .map(c -> EquipmentCategoryListResponse.from(c, countByCategoryId.getOrDefault(c.getId(), 0L)))
+                .toList();
     }
 
     @Transactional(readOnly = true)
@@ -72,7 +92,7 @@ public class EquipmentCategoryService {
         }
 
         category.setName(name);
-        category.setDescription(StringUtils.hasText(request.description()) ? request.description().trim() : null);
+        category.setDescription(TextUtils.trimToNull(request.description()));
         log.info("Categoría actualizada: categoryId={}", id);
     }
 
@@ -88,6 +108,12 @@ public class EquipmentCategoryService {
 
         categoryRepository.delete(category);
         log.info("Categoría eliminada: categoryId={}", id);
+    }
+
+    private Specification<EquipmentCategory> buildSpecification(String search) {
+        return StringUtils.hasText(search)
+                ? EquipmentCategorySpecifications.matchesSearch(search.trim())
+                : Specification.unrestricted();
     }
 
     private EquipmentCategory findCategory(Long id) {

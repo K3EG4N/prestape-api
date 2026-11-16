@@ -2,6 +2,7 @@ package com.prestape.controller;
 
 import java.util.List;
 
+import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -13,6 +14,7 @@ import com.prestape.dto.request.equipment.create.CreateEquipmentRequest;
 import com.prestape.dto.request.equipment.list.EquipmentFilterRequest;
 import com.prestape.dto.request.equipment.update.UpdateEquipmentRequest;
 import com.prestape.dto.response.EquipmentListResponse;
+import com.prestape.report.EquipmentExcelReport;
 import com.prestape.service.EquipmentService;
 
 import jakarta.validation.Valid;
@@ -22,9 +24,11 @@ import jakarta.validation.Valid;
 public class EquipmentController {
 
     private final EquipmentService equipmentService;
+    private final EquipmentExcelReport equipmentExcelReport;
 
-    public EquipmentController(EquipmentService equipmentService) {
+    public EquipmentController(EquipmentService equipmentService, EquipmentExcelReport equipmentExcelReport) {
         this.equipmentService = equipmentService;
+        this.equipmentExcelReport = equipmentExcelReport;
     }
 
     @GetMapping
@@ -32,6 +36,14 @@ public class EquipmentController {
             @Valid @ModelAttribute PaginationRequest pagination,
             @Valid @ModelAttribute EquipmentFilterRequest filter) {
         return ApiResponse.ok(equipmentService.list(pagination, filter));
+    }
+
+    @GetMapping("/export")
+    @PreAuthorize("hasAnyRole('ADMIN', 'SUPERVISOR')")
+    public ResponseEntity<byte[]> export(
+            @RequestParam(required = false) String search,
+            @Valid @ModelAttribute EquipmentFilterRequest filter) {
+        return equipmentExcelReport.generate(equipmentService.listForExport(search, filter)).toResponse();
     }
 
     @GetMapping("/options")

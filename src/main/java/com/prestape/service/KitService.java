@@ -4,6 +4,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 
+import com.prestape.config.ReportProperties;
 import com.prestape.constants.KitConstants;
 import com.prestape.dto.common.PageResponse;
 import com.prestape.dto.common.PaginationRequest;
@@ -13,8 +14,9 @@ import com.prestape.dto.request.kit.update.UpdateKitRequest;
 import com.prestape.dto.response.KitListResponse;
 import com.prestape.entity.Equipment;
 import com.prestape.entity.Kit;
-import com.prestape.exception.ConflictException;
-import com.prestape.exception.ResourceNotFoundException;
+import com.prestape.exception.custom.BusinessException;
+import com.prestape.exception.custom.ConflictException;
+import com.prestape.exception.custom.ResourceNotFoundException;
 import com.prestape.repository.EquipmentRepository;
 import com.prestape.repository.KitRepository;
 import com.prestape.specifications.KitSpecifications;
@@ -24,6 +26,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import com.prestape.util.TextUtils;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -33,10 +36,16 @@ public class KitService {
 
     private final KitRepository kitRepository;
     private final EquipmentRepository equipmentRepository;
+    private final ReportProperties reportProperties;
 
-    public KitService(KitRepository kitRepository, EquipmentRepository equipmentRepository) {
+    public KitService(
+            KitRepository kitRepository,
+            EquipmentRepository equipmentRepository,
+            ReportProperties reportProperties
+    ) {
         this.kitRepository = kitRepository;
         this.equipmentRepository = equipmentRepository;
+        this.reportProperties = reportProperties;
     }
 
     @Transactional(readOnly = true)
@@ -46,13 +55,28 @@ public class KitService {
                 .map(KitListResponse::from));
     }
 
+    @Transactional(readOnly = true)
+    public List<KitListResponse> listForExport(String search, KitFilterRequest filter) {
+        Specification<Kit> spec = buildSpecification(search, filter);
+
+        int maxRows = reportProperties.maxRows();
+        if (kitRepository.count(spec) > maxRows) {
+            throw new BusinessException(
+                    "La exportación supera las " + maxRows + " filas. Aplica más filtros");
+        }
+
+        return kitRepository.findAll(spec, KitConstants.DEFAULT_SORT).stream()
+                .map(KitListResponse::from)
+                .toList();
+    }
+
     @Transactional
     public void create(CreateKitRequest request) {
         Kit kit = new Kit();
         kit.setCode(RandomCodeGenerator.generateUnique(
                 KitConstants.CODE_PREFIX, KitConstants.CODE_LENGTH, kitRepository::existsByCode));
         kit.setName(request.name().trim());
-        kit.setDescription(trimToNull(request.description()));
+        kit.setDescription(TextUtils.trimToNull(request.description()));
         kit.setEquipments(findAssignableEquipments(request.equipmentIds(), null));
 
         Kit saved = kitRepository.save(kit);
@@ -64,7 +88,7 @@ public class KitService {
         Kit kit = findKit(id);
 
         kit.setName(request.name().trim());
-        kit.setDescription(trimToNull(request.description()));
+        kit.setDescription(TextUtils.trimToNull(request.description()));
         kit.getEquipments().clear();
         kit.getEquipments().addAll(findAssignableEquipments(request.equipmentIds(), id));
         log.info("Kit actualizado: kitId={}", id);
@@ -114,9 +138,5 @@ public class KitService {
     private Kit findKit(Long id) {
         return kitRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Kit no encontrado"));
-    }
-
-    private static String trimToNull(String value) {
-        return StringUtils.hasText(value) ? value.trim() : null;
     }
 }

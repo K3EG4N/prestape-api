@@ -45,4 +45,16 @@ public class Equipment extends BaseEntity {
         return availability == EquipmentAvailability.AVAILABLE
                 && condition != EquipmentCondition.DAMAGED;
     }
+
+    public void releaseFromLoan() {
+        availability = condition == EquipmentCondition.DAMAGED
+                ? EquipmentAvailability.IN_MAINTENANCE
+                : EquipmentAvailability.AVAILABLE;
+    }
+
+    public static boolean isAllowedState(EquipmentAvailability availability, EquipmentCondition condition) {
+        return condition != EquipmentCondition.DAMAGED
+                || availability == EquipmentAvailability.IN_MAINTENANCE
+                || availability == EquipmentAvailability.RETIRED;
+    }
 }

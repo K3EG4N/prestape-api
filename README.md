@@ -1,6 +1,6 @@
-# PrestaPe API
+# Prestape API
 
-API REST para la gestión de préstamos de equipos de laboratorio. Administra usuarios, catálogo de equipos, categorías y kits, y expone indicadores para el panel de administración. Es consumida por el cliente web [PrestaPe](https://github.com/K3EG4N/prestape) desarrollado en React.
+API REST para la gestión de préstamos de equipos de laboratorio. Administra usuarios y el catálogo de equipos, categorías y kits. Es consumida por el cliente web [PrestaPe](https://github.com/K3EG4N/prestape) desarrollado en React.
 
 ## Tecnologías
 

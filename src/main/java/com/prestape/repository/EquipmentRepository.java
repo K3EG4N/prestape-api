@@ -4,8 +4,6 @@ import java.util.Collection;
 import java.util.List;
 
 import com.prestape.entity.Equipment;
-import com.prestape.entity.enums.EquipmentAvailability;
-import com.prestape.entity.enums.EquipmentCondition;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
@@ -39,6 +37,10 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long>, Jpa
     @EntityGraph(attributePaths = "category")
     Page<Equipment> findAll(Specification<Equipment> spec, Pageable pageable);
 
+    @Override
+    @EntityGraph(attributePaths = "category")
+    List<Equipment> findAll(Specification<Equipment> spec, Sort sort);
+
     boolean existsByCode(String code);
 
     boolean existsBySerialNumberIgnoreCase(String serialNumber);
@@ -56,35 +58,4 @@ public interface EquipmentRepository extends JpaRepository<Equipment, Long>, Jpa
     @Modifying
     @Query(value = "DELETE FROM kit_items WHERE equipment_id = :equipmentId", nativeQuery = true)
     void removeFromKits(@Param("equipmentId") Long equipmentId);
-
-    interface CategoryEquipmentName {
-        Long getCategoryId();
-
-        String getName();
-    }
-
-    @Query("select e.category.id as categoryId, e.name as name from Equipment e order by e.name")
-    List<CategoryEquipmentName> findNamesByCategory();
-
-    interface AvailabilityCount {
-        EquipmentAvailability getStatus();
-
-        Long getTotal();
-    }
-
-    interface ConditionCount {
-        EquipmentCondition getStatus();
-
-        Long getTotal();
-    }
-
-    @Query("select e.availability as status, count(e) as total from Equipment e group by e.availability")
-    List<AvailabilityCount> countByAvailability();
-
-    @Query("select e.condition as status, count(e) as total from Equipment e group by e.condition")
-    List<ConditionCount> countByCondition();
-
-    @EntityGraph(attributePaths = "category")
-    List<Equipment> findTop5ByAvailabilityOrConditionOrderByUpdatedAtDesc(
-            EquipmentAvailability availability, EquipmentCondition condition);
 }

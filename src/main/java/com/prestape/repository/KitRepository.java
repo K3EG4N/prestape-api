@@ -26,4 +26,5 @@ public interface KitRepository extends JpaRepository<Kit, Long>, JpaSpecificatio
             """)
     List<AssignedEquipment> findAssignedToOtherKits(
             @Param("equipmentIds") Collection<Long> equipmentIds, @Param("kitId") Long kitId);
+
 }
