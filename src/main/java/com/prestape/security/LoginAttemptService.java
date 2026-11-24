@@ -44,8 +44,16 @@ public class LoginAttemptService {
 
         if (attempts.count() >= SecurityConstants.MAX_LOGIN_ATTEMPTS && attempts.lockedUntil() == null) {
             attemptsByEmail.put(key(email), attempts.lock(clock.instant().plus(SecurityConstants.LOGIN_LOCK_DURATION)));
-            log.warn("Cuenta bloqueada temporalmente por intentos fallidos: email={}", key(email));
+            log.warn("Cuenta bloqueada temporalmente por intentos fallidos: email={}", mask(key(email)));
         }
+    }
+
+    static String mask(String email) {
+        int at = email.indexOf('@');
+        if (at <= 0) {
+            return "***";
+        }
+        return email.charAt(0) + "***" + email.substring(at);
     }
 
     public void loginSucceeded(String email) {
