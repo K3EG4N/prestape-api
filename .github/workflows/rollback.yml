@@ -1,0 +1,52 @@
+name: Rollback
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Versión liberada a restaurar (por ejemplo 1.0.12)
+        required: true
+
+concurrency:
+  group: production
+  cancel-in-progress: false
+
+env:
+  AZURE_WEBAPP_NAME: prestape-api
+  APP_URL: https://prestape-api-fmaybdhtc9e3ajdb.brazilsouth-01.azurewebsites.net
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  rollback:
+    name: Producción
+    runs-on: ubuntu-latest
+    environment:
+      name: production
+      url: ${{ env.APP_URL }}
+    steps:
+      - name: Descargar el .jar de la Release v${{ env.VERSION }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release download "v${VERSION}" --repo "${{ github.repository }}" --pattern "*.jar"
+
+      - name: Desplegar en Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ env.AZURE_WEBAPP_NAME }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
+          package: prestape-api-${{ env.VERSION }}.jar
+
+      - name: Smoke test
+        run: |
+          for attempt in $(seq 1 30); do
+            health=$(curl -s "${APP_URL}/actuator/health" || true)
+            version=$(curl -s "${APP_URL}/actuator/info" | jq -r '.build.version // empty' || true)
+            echo "Intento ${attempt}: health=${health} version=${version}"
+            if [ "$(echo "$health" | jq -r '.status // empty' 2>/dev/null)" = "UP" ] && [ "$version" = "$VERSION" ]; then
+              echo "Rollback a ${VERSION} completado"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "La aplicación no respondió UP con la versión ${VERSION}"
+          exit 1
