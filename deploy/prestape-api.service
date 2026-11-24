@@ -1,0 +1,20 @@
+[Unit]
+Description=PrestaPe API (Spring Boot)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=prestape
+Group=prestape
+WorkingDirectory=/opt/prestape-api
+EnvironmentFile=/etc/prestape-api/prestape-api.env
+ExecStart=/usr/bin/java -Xms256m -Xmx768m -jar /opt/prestape-api/prestape-api.jar --spring.profiles.active=prod
+SuccessExitStatus=143
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
